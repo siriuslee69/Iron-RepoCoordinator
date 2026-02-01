@@ -7,7 +7,15 @@ type
     tcStatus,
     tcScan,
     tcRepos,
+    tcExpand,
+    tcPushAll,
     tcVersion
   ToolingConfig* = object
     rootDir*: string
     verbose*: bool
+  RepoInfo* = object
+    name*: string
+    path*: string
+    hasGit*: bool
+    hasSubmodules*: bool
+    hasValkyrie*: bool

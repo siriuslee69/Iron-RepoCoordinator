@@ -1,19 +1,23 @@
 import std/[os, strutils]
 
 version       = "0.1.0"
-author        = "SiriusLee69"
+author        = "siriuslee69"
 description   = "Tooling library with CLI for Eitri/Jormungandr integrations"
-license       = "Unlicense"
+license       = "UNLICENSED"
 srcDir        = "src"
-bin           = @["valkyrie_cli"]
+bin           = @["valkyrie_cli", "val"]
 
 requires "nim >= 1.6.0"
 
 task buildCli, "Build the CLI entrypoint":
   exec "nim c -d:release src/valkyrie_cli.nim"
+  exec "nim c -d:release src/val.nim"
 
 task runCli, "Run the CLI entrypoint":
   exec "nim c -r src/valkyrie_cli.nim"
+
+task runVal, "Run the short CLI alias":
+  exec "nim c -r src/val.nim"
 
 task test, "Run unit tests":
   exec "nim c -r tests/test_smoke.nim"

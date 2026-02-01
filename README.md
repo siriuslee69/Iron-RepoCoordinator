@@ -1,6 +1,6 @@
 # Valkyrie-Tooling
 
-Valkyrie is a Nim tooling library with a CLI, designed to integrate with Eitri (package manager), Jormungandr (repo coordinator), Yggdrasil (ASCII trees), and Tyr (crypto utilities).
+Valkyrie is a Nim tooling library with a CLI, designed to integrate with Eitri (package manager), Jormungandr (repo coordinator), Yggdrasil (ASCII trees), Tyr (crypto utilities), and Sigma (bench/eval utilities).
 
 ## Goals
 - Clean, modular tooling primitives with a thin CLI wrapper
@@ -13,16 +13,29 @@ Valkyrie is a Nim tooling library with a CLI, designed to integrate with Eitri (
 - `src/cli/level1/` CLI runner
 - `src/valkyrie_tooling.nim` public API re-exports
 - `src/valkyrie_cli.nim` CLI entrypoint
+- `src/val.nim` CLI alias entrypoint
 - `tests/` unit tests
 - `submodules/` external tooling dependencies
 
 ## Quick Start
 - Build CLI: `nimble buildCli`
 - Run CLI: `nimble runCli`
+- Run short CLI: `nimble runVal`
 - Tests: `nimble test`
+- Expand submodules: `val expand` (wraps Jormungandr expand)
+
+## Configuration
+- Roots are discovered from `VALKYRIE_ROOTS` (preferred) or `JRC_ROOTS` (fallback).
+  - Windows: separate with `;` (avoid splitting drive letters)
+  - POSIX: separate with `:`
+- Default roots: the parent of the current repo, plus a sibling `../Coding` if it exists.
+- Verbose repo output: `--verbose` or set `VALKYRIE_VERBOSE=1`.
 
 ## Status
-Scaffolded. Command handlers are placeholders while integrations are implemented.
+Repo scan/listing and Jormungandr expand are live. Integrations are still in progress.
+
+## Roadmap Notes
+- Each repo in the ecosystem will eventually have a `valkyrie/` folder for local tooling metadata (not created yet).
 
 ---
 
