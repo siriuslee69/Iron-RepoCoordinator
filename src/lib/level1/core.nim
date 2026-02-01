@@ -6,6 +6,7 @@ import ../level0/types
 import repo_scan
 import jormungandr_repo_coordinator/level1/expand
 import jormungandr_repo_coordinator/level1/pushall
+import jormungandr_repo_coordinator/level1/submodule_refresh
 
 proc buildHelp*(): string =
   ## returns CLI help text
@@ -25,6 +26,7 @@ proc buildHelp*(): string =
     "  repos    List known repos",
     "  expand   Propagate updated submodule across repos",
     "  pushall  Add/commit/push all repos under parent directory",
+    "  refresh  Stash/pull submodule repos (main branch)",
     "  version  Show version",
     "",
     "Flags:",
@@ -56,6 +58,8 @@ proc parseCommand*(cs: seq[string]): ToolingCommand =
     result = tcRepos
   of "expand":
     result = tcExpand
+  of "refresh":
+    result = tcRefresh
   of "pushall":
     result = tcPushAll
   of "version", "-v", "--version":
@@ -124,6 +128,15 @@ proc runCommand*(c: ToolingCommand, s: ToolingConfig): string =
         t = "Expand failed."
     else:
       t = tReport.lines.join("\n")
+  of tcRefresh:
+    var rReport: SubmoduleRefreshReport = refreshSubmodules()
+    if rReport.lines.len == 0:
+      if rReport.ok:
+        t = "Refresh completed."
+      else:
+        t = "Refresh failed."
+    else:
+      t = rReport.lines.join("\n")
   of tcPushAll:
     var pReport: PushAllReport = pushAllFromParent(s.verbose)
     if pReport.lines.len == 0:

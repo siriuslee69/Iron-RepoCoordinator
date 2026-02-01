@@ -8,6 +8,7 @@ type
     tcScan,
     tcRepos,
     tcExpand,
+    tcRefresh,
     tcPushAll,
     tcVersion
   ToolingConfig* = object
