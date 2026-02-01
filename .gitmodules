@@ -1,0 +1,12 @@
+[submodule "submodules/Eitri-NimPackageManager"]
+	path = submodules/Eitri-NimPackageManager
+	url = https://github.com/siriuslee69/Eitri-NimPackageManager
+[submodule "submodules/Jormungandr-RepoCoordinator"]
+	path = submodules/Jormungandr-RepoCoordinator
+	url = https://github.com/siriuslee69/Jormungandr-RepoCoordinator
+[submodule "submodules/Yggdrasil-ASCIIArt"]
+	path = submodules/Yggdrasil-ASCIIArt
+	url = https://github.com/siriuslee69/Yggdrasil-ASCIIArt
+[submodule "submodules/Tyr-Crypto"]
+	path = submodules/Tyr-Crypto
+	url = https://github.com/siriuslee69/Tyr-Crypto.git
