@@ -8,6 +8,8 @@ type
     tcScan,
     tcRepos,
     tcExpand,
+    tcExtract,
+    tcExtractAll,
     tcRefresh,
     tcPushAll,
     tcVersion

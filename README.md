@@ -35,7 +35,13 @@ Valkyrie is a Nim tooling library with a CLI, designed to integrate with Eitri (
 Repo scan/listing and Jormungandr expand are live. Integrations are still in progress.
 
 ## Roadmap Notes
-- Each repo in the ecosystem will eventually have a `valkyrie/` folder for local tooling metadata (not created yet).
+- Each repo in the ecosystem should have a `valkyrie/` folder next to `src/` for local tooling metadata.
+
+## Safety policy
+
+- Any operation that modifies repos requires an explicit ENTER confirmation.
+- When multiple choices exist, Valkyrie prints numbered options and accepts `1/2/3/...` or `x` to abort.
+- Non-interactive sessions abort for safety.
 
 ---
 

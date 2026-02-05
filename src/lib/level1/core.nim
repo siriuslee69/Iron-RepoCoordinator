@@ -7,6 +7,7 @@ import repo_scan
 import jormungandr_repo_coordinator/level1/expand
 import jormungandr_repo_coordinator/level1/pushall
 import jormungandr_repo_coordinator/level1/submodule_refresh
+import jormungandr_repo_coordinator/level1/submodule_extract
 
 proc buildHelp*(): string =
   ## returns CLI help text
@@ -25,6 +26,8 @@ proc buildHelp*(): string =
     "  scan     Scan local repos",
     "  repos    List known repos",
     "  expand   Propagate updated submodule across repos",
+    "  extract  Clone submodules to sibling repos",
+    "  extract-all  Extract submodules for all repos under roots",
     "  pushall  Add/commit/push all repos under parent directory",
     "  refresh  Stash/pull submodule repos (main branch)",
     "  version  Show version",
@@ -58,6 +61,10 @@ proc parseCommand*(cs: seq[string]): ToolingCommand =
     result = tcRepos
   of "expand":
     result = tcExpand
+  of "extract":
+    result = tcExtract
+  of "extract-all", "extract_all":
+    result = tcExtractAll
   of "refresh":
     result = tcRefresh
   of "pushall":
@@ -128,6 +135,24 @@ proc runCommand*(c: ToolingCommand, s: ToolingConfig): string =
         t = "Expand failed."
     else:
       t = tReport.lines.join("\n")
+  of tcExtract:
+    var eReport: SubmoduleExtractReport = extractSubmodules(getCurrentDir(), "", false, s.verbose)
+    if eReport.lines.len == 0:
+      if eReport.ok:
+        t = "Extract completed."
+      else:
+        t = "Extract failed."
+    else:
+      t = eReport.lines.join("\n")
+  of tcExtractAll:
+    var gReport: SubmoduleExtractGlobalReport = extractSubmodulesGlobal("", false, s.verbose)
+    if gReport.lines.len == 0:
+      if gReport.ok:
+        t = "Extract-all completed."
+      else:
+        t = "Extract-all failed."
+    else:
+      t = gReport.lines.join("\n")
   of tcRefresh:
     var rReport: SubmoduleRefreshReport = refreshSubmodules()
     if rReport.lines.len == 0:
