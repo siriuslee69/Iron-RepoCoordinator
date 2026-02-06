@@ -23,6 +23,7 @@ Valkyrie is a Nim tooling library with a CLI, designed to integrate with Eitri (
 - Run short CLI: `nimble runVal`
 - Tests: `nimble test`
 - Expand submodules: `val expand` (wraps Jormungandr expand)
+- Switch branch channel: `val branch`
 
 ## Configuration
 - Roots are discovered from `VALKYRIE_ROOTS` (preferred) or `JRC_ROOTS` (fallback).
@@ -42,6 +43,21 @@ Repo scan/listing and Jormungandr expand are live. Integrations are still in pro
 - Any operation that modifies repos requires an explicit ENTER confirmation.
 - When multiple choices exist, Valkyrie prints numbered options and accepts `1/2/3/...` or `x` to abort.
 - Non-interactive sessions abort for safety.
+
+## TODO (multi-repo UX)
+
+- Surface repo ownership config (`valkyrie/jrc.toml`) and safe defaults.
+- Expose branch channel switching (main/nightly) via CLI.
+- Workspace profiles (named sets of repos, tasks, and policies).
+- Read-only mode for foreign repos with optional update-only actions.
+
+## TODO (multi-repo local dev)
+
+- Workspace status dashboard (health, dirty state, ahead/behind, build/test status).
+- Per-repo task presets (stored in `valkyrie/`) with opt-in execution.
+- Cross-repo grep/index with jump-to-file helpers.
+- Local cache of repo metadata for faster scans.
+- Guarded bulk actions (diff preview, approvals, and rollback markers).
 
 ---
 

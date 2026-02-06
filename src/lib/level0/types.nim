@@ -12,6 +12,7 @@ type
     tcExtractAll,
     tcRefresh,
     tcPushAll,
+    tcBranchMode,
     tcVersion
   ToolingConfig* = object
     rootDir*: string

@@ -4,6 +4,8 @@
 import std/[strutils, os]
 import ../level0/types
 import repo_scan
+import jormungandr_repo_coordinator/level0/repo_utils
+import jormungandr_repo_coordinator/level1/branch_mode
 import jormungandr_repo_coordinator/level1/expand
 import jormungandr_repo_coordinator/level1/pushall
 import jormungandr_repo_coordinator/level1/submodule_refresh
@@ -30,6 +32,7 @@ proc buildHelp*(): string =
     "  extract-all  Extract submodules for all repos under roots",
     "  pushall  Add/commit/push all repos under parent directory",
     "  refresh  Stash/pull submodule repos (main branch)",
+    "  branch   Switch between main/nightly or promote nightly",
     "  version  Show version",
     "",
     "Flags:",
@@ -69,6 +72,8 @@ proc parseCommand*(cs: seq[string]): ToolingCommand =
     result = tcRefresh
   of "pushall":
     result = tcPushAll
+  of "branch", "branch-mode", "branch_mode":
+    result = tcBranchMode
   of "version", "-v", "--version":
     result = tcVersion
   else:
@@ -171,6 +176,32 @@ proc runCommand*(c: ToolingCommand, s: ToolingConfig): string =
         t = "Pushall failed."
     else:
       t = pReport.lines.join("\n")
+  of tcBranchMode:
+    var opts: seq[string] = @[
+      "Switch to main",
+      "Switch to nightly",
+      "Promote nightly to main"
+    ]
+    var idx: int = promptOptions("Select branch action:", opts)
+    if idx < 0:
+      t = "Branch mode cancelled."
+    else:
+      var mode: string
+      case idx
+      of 0:
+        mode = "main"
+      of 1:
+        mode = "nightly"
+      else:
+        mode = "promote"
+      var bReport: BranchModeReport = switchBranchMode(getCurrentDir(), mode)
+      if bReport.lines.len == 0:
+        if bReport.ok:
+          t = "Branch mode completed."
+        else:
+          t = "Branch mode failed."
+      else:
+        t = bReport.lines.join("\n")
   of tcVersion:
     t = "Valkyrie-Tooling v0.1.0"
   result = t
