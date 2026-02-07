@@ -8,6 +8,7 @@ import jormungandr_repo_coordinator/level0/repo_utils
 import jormungandr_repo_coordinator/level1/branch_mode
 import jormungandr_repo_coordinator/level1/expand
 import jormungandr_repo_coordinator/level1/pushall
+import jormungandr_repo_coordinator/level1/repo_health
 import jormungandr_repo_coordinator/level1/submodule_refresh
 import jormungandr_repo_coordinator/level1/submodule_extract
 
@@ -24,6 +25,7 @@ proc buildHelp*(): string =
     "",
     "Commands:",
     "  help     Show this help",
+    "  health   Show repo health checks",
     "  status   Show repo status summary",
     "  scan     Scan local repos",
     "  repos    List known repos",
@@ -56,6 +58,8 @@ proc parseCommand*(cs: seq[string]): ToolingCommand =
   case t
   of "help", "-h", "--help":
     result = tcHelp
+  of "health":
+    result = tcHealth
   of "status":
     result = tcStatus
   of "scan":
@@ -95,6 +99,17 @@ proc runCommand*(c: ToolingCommand, s: ToolingConfig): string =
   case c
   of tcHelp:
     t = buildHelp()
+  of tcHealth:
+    tRoots = resolveRoots(s)
+    tRepos = discoverRepos(tRoots)
+    var paths: seq[string] = @[]
+    i = 0
+    while i < tRepos.len:
+      paths.add(tRepos[i].path)
+      inc i
+    var hReport: RepoHealthReport = buildRepoHealthReport(paths)
+    tLines = formatRepoHealthReport(hReport, s.verbose)
+    t = tLines.join("\n")
   of tcStatus:
     tRoots = resolveRoots(s)
     tRepos = discoverRepos(tRoots)

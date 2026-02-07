@@ -4,6 +4,7 @@
 type
   ToolingCommand* = enum
     tcHelp,
+    tcHealth,
     tcStatus,
     tcScan,
     tcRepos,

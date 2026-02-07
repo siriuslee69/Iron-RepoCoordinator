@@ -23,6 +23,7 @@ Valkyrie is a Nim tooling library with a CLI, designed to integrate with Eitri (
 - Run short CLI: `nimble runVal`
 - Tests: `nimble test`
 - Expand submodules: `val expand` (wraps Jormungandr expand)
+- Repo health scan: `val health`
 - Switch branch channel: `val branch`
 
 ## Configuration
@@ -33,7 +34,7 @@ Valkyrie is a Nim tooling library with a CLI, designed to integrate with Eitri (
 - Verbose repo output: `--verbose` or set `VALKYRIE_VERBOSE=1`.
 
 ## Status
-Repo scan/listing and Jormungandr expand are live. Integrations are still in progress.
+Repo scan/listing, health checks, and Jormungandr expand are live. Integrations are still in progress.
 
 ## Roadmap Notes
 - Each repo in the ecosystem should have a `valkyrie/` folder next to `src/` for local tooling metadata.
@@ -53,7 +54,7 @@ Repo scan/listing and Jormungandr expand are live. Integrations are still in pro
 
 ## TODO (multi-repo local dev)
 
-- Workspace status dashboard (health, dirty state, ahead/behind, build/test status).
+- Workspace status dashboard (build/test status).
 - Per-repo task presets (stored in `valkyrie/`) with opt-in execution.
 - Cross-repo grep/index with jump-to-file helpers.
 - Local cache of repo metadata for faster scans.

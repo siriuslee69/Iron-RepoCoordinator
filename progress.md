@@ -11,6 +11,7 @@ Features (Total):
 8. Repo scanning/listing
 9. Jormungandr expand integration
 10. Tests for core commands
+11. Repo health checks (dirty/ahead/behind)
 
 Features (Implemented):
 1. Base project structure and conventions
@@ -19,6 +20,7 @@ Features (Implemented):
 4. Repo scanning/listing with root discovery
 5. Jormungandr expand integration
 6. Sigma submodule added
+7. Repo health checks via Jormungandr scan
 
 Features (Working On):
 1. Config loading and submodule wiring
