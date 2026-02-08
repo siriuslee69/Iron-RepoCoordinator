@@ -21,6 +21,7 @@ Features (Implemented):
 5. Jormungandr expand integration
 6. Sigma submodule added
 7. Repo health checks via Jormungandr scan
+8. Foreign repo railguards (owners + update-only mode)
 
 Features (Working On):
 1. Config loading and submodule wiring

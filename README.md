@@ -52,6 +52,19 @@ Repo scan/listing, health checks, and Jormungandr expand are live. Integrations 
 - Workspace profiles (named sets of repos, tasks, and policies).
 - Read-only mode for foreign repos with optional update-only actions.
 
+## Ownership & foreign repo safety
+
+`valkyrie/jrc.toml` controls which repos are writable:
+
+```
+owners = "siriuslee69"
+foreign_mode = "update" # update or skip
+```
+
+Write actions (expand/extract/branch/push) require `owners` to be configured.
+Foreign repos are skipped for writes; refresh can still update when
+`foreign_mode=update`.
+
 ## TODO (multi-repo local dev)
 
 - Workspace status dashboard (build/test status).
