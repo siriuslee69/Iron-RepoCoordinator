@@ -33,3 +33,7 @@ Last Big Change or Problem:
 
 Fix Attempt and Result:
 1. Not applicable yet
+
+
+Features (Planned):
+- Add JSON config file for settings (centralized/NixOS integration)
