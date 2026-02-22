@@ -8,13 +8,23 @@ type
     tcStatus,
     tcScan,
     tcRepos,
+    tcTest,
     tcExpand,
     tcExtract,
     tcExtractAll,
+    tcFind,
+    tcAutoPull,
+    tcAutoPush,
     tcRefresh,
     tcPushAll,
     tcBranchMode,
     tcVersion
+  ToolingOptions* = object
+    repo*: string
+    root*: string
+    mode*: string
+    replace*: bool
+    dryRun*: bool
   ToolingConfig* = object
     rootDir*: string
     verbose*: bool

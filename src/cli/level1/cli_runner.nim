@@ -39,6 +39,7 @@ proc runCli*(): int =
   var
     cs: seq[string]
     c: ToolingCommand
+    o: ToolingOptions
     s: ToolingConfig
     tOut: string
   cs = commandLineParams()
@@ -47,7 +48,8 @@ proc runCli*(): int =
     s.verbose = true
   cs = stripVerboseFlag(cs)
   c = parseCommand(cs)
-  tOut = runCommand(c, s)
+  o = parseOptions(cs)
+  tOut = runCommand(c, s, o)
   if tOut.len > 0:
     echo tOut
   result = 0

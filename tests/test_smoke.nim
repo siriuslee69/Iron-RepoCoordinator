@@ -57,9 +57,11 @@ suite "valkyrie tooling":
   test "runCommand version":
     var
       s: ToolingConfig
+      o: ToolingOptions
       t: string
     s = defaultConfig()
-    t = runCommand(tcVersion, s)
+    o = defaultOptions()
+    t = runCommand(tcVersion, s, o)
     check t.contains("Valkyrie-Tooling")
 
   test "parseCommand expand":
@@ -69,6 +71,24 @@ suite "valkyrie tooling":
     cs = @["expand"]
     c = parseCommand(cs)
     check c == tcExpand
+
+  test "parseOptions for extract":
+    var
+      cs: seq[string]
+      o: ToolingOptions
+    cs = @[
+      "extract",
+      "--repo=F:/CodingMain/RepoA",
+      "--root",
+      "F:/CodingMain",
+      "--replace",
+      "--dry-run"
+    ]
+    o = parseOptions(cs)
+    check o.repo == "F:/CodingMain/RepoA"
+    check o.root == "F:/CodingMain"
+    check o.replace
+    check o.dryRun
 
   test "parseRoots windows drive":
     var

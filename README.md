@@ -1,77 +1,67 @@
 # Valkyrie-Tooling
 
-Valkyrie is a Nim tooling library with a CLI, designed to integrate with Eitri (package manager), Jormungandr (repo coordinator), Yggdrasil (ASCII trees), Tyr (crypto utilities), and Sigma (bench/eval utilities).
+Valkyrie is a CLI-first multi-repo tooling project in Nim. Jormungandr functionality is embedded directly in this repository so Valkyrie is no longer only a wrapper around an external Jorm submodule.
 
 ## Goals
-- Clean, modular tooling primitives with a thin CLI wrapper
-- Straightforward integration points for related tooling repos
-- Simple, testable command routing
+- Keep one practical CLI surface for multi-repo workflows.
+- Keep core repo coordination logic local to this repo.
+- Keep optional ecosystem integrations (Eitri, Yggdrasil, Tyr, Sigma) modular.
 
 ## Structure
-- `src/lib/level0/` base types and small helpers
-- `src/lib/level1/` core command parsing and dispatch
-- `src/cli/level1/` CLI runner
-- `src/valkyrie_tooling.nim` public API re-exports
-- `src/valkyrie_cli.nim` CLI entrypoint
-- `src/val.nim` CLI alias entrypoint
-- `tests/` unit tests
-- `submodules/` external tooling dependencies
+- `src/cli/level1/` CLI runner and entrypoints (`valkyrie_cli`, `val`)
+- `src/lib/level0/` base types and config
+- `src/lib/level1/` command parsing, dispatch, root scanning
+- `src/jormungandr_repo_coordinator/` embedded repo-coordination modules
+- `tests/` smoke tests for Valkyrie + embedded Jorm behavior
+- `submodules/` optional external tooling dependencies
 
 ## Quick Start
 - Build CLI: `nimble buildCli`
-- Run CLI: `nimble runCli`
-- Run short CLI: `nimble runVal`
-- Tests: `nimble test`
-- Expand submodules: `val expand` (wraps Jormungandr expand)
-- Repo health scan: `val health`
-- Switch branch channel: `val branch`
+- Run CLI: `nimble runVal`
+- Run tests: `nimble test`
+
+Common commands:
+- `val help`
+- `val status`
+- `val health`
+- `val test`
+- `val find`
+- `val autopull`
+- `val autopush`
+- `val expand --repo <path>`
+- `val extract --repo <path> --root <path> --replace`
+- `val extract-all --root <path>`
+- `val branch --mode main|nightly|promote`
+- `val pushall`
 
 ## Configuration
-- Roots are discovered from `VALKYRIE_ROOTS` (preferred) or `JRC_ROOTS` (fallback).
-  - Windows: separate with `;` (avoid splitting drive letters)
-  - POSIX: separate with `:`
-- Default roots: the parent of the current repo, plus a sibling `../Coding` if it exists.
-- Verbose repo output: `--verbose` or set `VALKYRIE_VERBOSE=1`.
+- Roots are discovered from `VALKYRIE_ROOTS` first, then `JRC_ROOTS`.
+  - Windows separator: `;`
+  - POSIX separator: `:`
+- Verbose output:
+  - CLI flag: `--verbose`
+  - Env flag: `VALKYRIE_VERBOSE=1`
+- Ownership safety is configured via `valkyrie/jrc.toml`:
 
-## Status
-Repo scan/listing, health checks, and Jormungandr expand are live. Integrations are still in progress.
-
-## Roadmap Notes
-- Each repo in the ecosystem should have a `valkyrie/` folder next to `src/` for local tooling metadata.
-
-## Safety policy
-
-- Any operation that modifies repos requires an explicit ENTER confirmation.
-- When multiple choices exist, Valkyrie prints numbered options and accepts `1/2/3/...` or `x` to abort.
-- Non-interactive sessions abort for safety.
-
-## TODO (multi-repo UX)
-
-- Surface repo ownership config (`valkyrie/jrc.toml`) and safe defaults.
-- Expose branch channel switching (main/nightly) via CLI.
-- Workspace profiles (named sets of repos, tasks, and policies).
-- Read-only mode for foreign repos with optional update-only actions.
-
-## Ownership & foreign repo safety
-
-`valkyrie/jrc.toml` controls which repos are writable:
-
-```
+```toml
 owners = "siriuslee69"
 foreign_mode = "update" # update or skip
 ```
 
-Write actions (expand/extract/branch/push) require `owners` to be configured.
-Foreign repos are skipped for writes; refresh can still update when
-`foreign_mode=update`.
+Write actions require `owners` to be configured.
 
-## TODO (multi-repo local dev)
+## Safety Policy
+- Write operations prompt for explicit ENTER confirmation.
+- Interactive options use numbered choices and `x` to abort.
+- Non-interactive sessions abort for write operations.
 
-- Workspace status dashboard (build/test status).
-- Per-repo task presets (stored in `valkyrie/`) with opt-in execution.
-- Cross-repo grep/index with jump-to-file helpers.
-- Local cache of repo metadata for faster scans.
-- Guarded bulk actions (diff preview, approvals, and rollback markers).
+## Issue Playbook
+- Problem: write actions are blocked with `No owners configured`.
+  - Workaround: set `owners` in `valkyrie/jrc.toml`.
+- Problem: `find` or `expand` does not link a submodule.
+  - Workaround: ensure matching local clone name/path and check `.gitmodules` entries.
+- Problem: branch switching fails on dirty repo state.
+  - Workaround: commit or stash changes before `val branch`.
 
 ---
 

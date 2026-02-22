@@ -1,8 +1,8 @@
 import std/[os, strutils]
 
-version       = "0.1.0"
+version       = "0.2.0"
 author        = "siriuslee69"
-description   = "Tooling library with CLI for Eitri/Jormungandr integrations"
+description   = "CLI-first multi-repo tooling with embedded Jormungandr features"
 license       = "UNLICENSED"
 srcDir        = "src"
 bin           = @["valkyrie_cli", "val"]
@@ -21,6 +21,37 @@ task runVal, "Run the short CLI alias":
 
 task test, "Run unit tests":
   exec "nim c -r tests/test_smoke.nim"
+  exec "nim c -r tests/test_jorm_smoke.nim"
+
+task autopull, "Pull all repos under configured roots":
+  exec "nim c -r src/val.nim -- autopull"
+
+task autopushall, "Push all repos under configured roots":
+  exec "nim c -r src/val.nim -- pushall"
+
+task pushall, "Add/commit/push all repos under parent directory":
+  exec "nim c -r src/val.nim -- pushall"
+
+task submodrefresh, "Stash and pull latest main for submodule repos":
+  exec "nim c -r src/val.nim -- refresh"
+
+task find, "Create local submodule overrides and update git config":
+  exec "nim c -r src/val.nim -- find"
+
+task expand, "Expand updated submodule across sibling repos":
+  exec "nim c -r src/val.nim -- expand"
+
+task extract_submodules, "Clone submodules to sibling repos and apply local overrides":
+  exec "nim c -r src/val.nim -- extract"
+
+task extract_submodules_global, "Extract submodules for all repos under roots":
+  exec "nim c -r src/val.nim -- extract-all"
+
+task branch_mode, "Switch repo between main/nightly or promote nightly":
+  exec "nim c -r src/val.nim -- branch"
+
+task jormtest, "Pick and run a test task (nimble + eitri)":
+  exec "nim c -r src/val.nim -- test"
 
 task autopush, "Add, commit, and push with message from progress.md":
   let path = "progress.md"
@@ -37,7 +68,7 @@ task autopush, "Add, commit, and push with message from progress.md":
   exec "git commit -m \" " & msg & "\""
   exec "git push"
 
-task find, "Use local clones for submodules in parent folder":
+task find_current, "Use local clones for submodules in parent folder (current repo only)":
   let modulesPath = ".gitmodules"
   if not fileExists(modulesPath):
     echo "No .gitmodules found."

@@ -1,51 +1,79 @@
-# Valkyrie Tooling | core command logic
-# Parsing and dispatch for CLI and library consumers.
+# ==================================================
+# | Valkyrie Tooling Core Command Logic            |
+# |------------------------------------------------|
+# | Parsing and dispatch for CLI + library users.  |
+# ==================================================
 
 import std/[strutils, os]
 import ../level0/types
 import repo_scan
 import jormungandr_repo_coordinator/level0/repo_utils
+import jormungandr_repo_coordinator/level1/autopull
+import jormungandr_repo_coordinator/level1/autopush
 import jormungandr_repo_coordinator/level1/branch_mode
 import jormungandr_repo_coordinator/level1/expand
+import jormungandr_repo_coordinator/level1/find_local_submodules
 import jormungandr_repo_coordinator/level1/pushall
 import jormungandr_repo_coordinator/level1/repo_health
-import jormungandr_repo_coordinator/level1/submodule_refresh
 import jormungandr_repo_coordinator/level1/submodule_extract
+import jormungandr_repo_coordinator/level1/submodule_refresh
+import jormungandr_repo_coordinator/level1/test_picker
+
+
+proc defaultOptions*(): ToolingOptions =
+  ## returns default command options
+  var
+    t: ToolingOptions
+  t.repo = getCurrentDir()
+  t.root = ""
+  t.mode = ""
+  t.replace = false
+  t.dryRun = false
+  result = t
 
 proc buildHelp*(): string =
   ## returns CLI help text
   var
-    tLines: seq[string]
-  tLines = @[
+    ls: seq[string]
+  ls = @[
     "Valkyrie Tooling CLI",
     "",
     "Usage:",
-    "  val <command>",
-    "  valkyrie_cli <command>",
+    "  val <command> [flags]",
+    "  valkyrie_cli <command> [flags]",
     "",
     "Commands:",
-    "  help     Show this help",
-    "  health   Show repo health checks",
-    "  status   Show repo status summary",
-    "  scan     Scan local repos",
-    "  repos    List known repos",
-    "  expand   Propagate updated submodule across repos",
-    "  extract  Clone submodules to sibling repos",
-    "  extract-all  Extract submodules for all repos under roots",
-    "  pushall  Add/commit/push all repos under parent directory",
-    "  refresh  Stash/pull submodule repos (main branch)",
-    "  branch   Switch between main/nightly or promote nightly",
-    "  version  Show version",
+    "  help      Show this help",
+    "  health    Show repo health checks",
+    "  status    Show repo status summary",
+    "  scan      Scan local repos",
+    "  repos     List known repos",
+    "  test      Pick and run a test task (nimble + eitri)",
+    "  find      Build local submodule overrides under roots",
+    "  autopull  Pull all repos under discovered roots",
+    "  autopush  Commit/push current repo",
+    "  expand    Propagate updated submodule across repos",
+    "  extract   Clone submodules to sibling repos",
+    "  extract-all Extract submodules for all repos under roots",
+    "  pushall   Add/commit/push repos under the selected root",
+    "  refresh   Stash/pull submodule repos (main branch)",
+    "  branch    Switch between main/nightly or promote nightly",
+    "  version   Show version",
     "",
     "Flags:",
     "  --verbose  Show extra repo details",
+    "  --repo <path> or --repo=<path>  Target repo for repo commands",
+    "  --root <path> or --root=<path>  Override root for extract commands",
+    "  --mode <main|nightly|promote>   Branch mode action",
+    "  --replace                       Replace clone targets when extracting",
+    "  --dry-run                       Do not modify repositories",
     "",
     "Environment:",
     "  VALKYRIE_ROOTS  Roots (Windows ';' or POSIX ':')",
     "  JRC_ROOTS       Fallback roots (same format)",
     "  VALKYRIE_VERBOSE=1  Enable verbose output"
   ]
-  result = tLines.join("\n")
+  result = ls.join("\n")
 
 proc parseCommand*(cs: seq[string]): ToolingCommand =
   ## cs: command-line arguments
@@ -66,15 +94,23 @@ proc parseCommand*(cs: seq[string]): ToolingCommand =
     result = tcScan
   of "repos":
     result = tcRepos
+  of "test", "jormtest":
+    result = tcTest
+  of "find":
+    result = tcFind
+  of "autopull":
+    result = tcAutoPull
+  of "autopush":
+    result = tcAutoPush
   of "expand":
     result = tcExpand
-  of "extract":
+  of "extract", "extract_submodules":
     result = tcExtract
-  of "extract-all", "extract_all":
+  of "extract-all", "extract_all", "extract_submodules_global":
     result = tcExtractAll
-  of "refresh":
+  of "refresh", "submodrefresh":
     result = tcRefresh
-  of "pushall":
+  of "pushall", "autopushall":
     result = tcPushAll
   of "branch", "branch-mode", "branch_mode":
     result = tcBranchMode
@@ -83,140 +119,214 @@ proc parseCommand*(cs: seq[string]): ToolingCommand =
   else:
     result = tcHelp
 
-proc runCommand*(c: ToolingCommand, s: ToolingConfig): string =
-  ## c: command to run
-  ## s: tooling configuration
+proc parseOptions*(cs: seq[string]): ToolingOptions =
+  ## cs: command-line arguments
+  var
+    t: ToolingOptions
+    i: int
+    a: string
+  t = defaultOptions()
+  i = 0
+  while i < cs.len:
+    a = cs[i]
+    if i == 0 and not a.startsWith("-"):
+      inc i
+      continue
+    if a == "--repo" and i + 1 < cs.len:
+      t.repo = cs[i + 1]
+      i = i + 2
+      continue
+    if a.startsWith("--repo="):
+      t.repo = a["--repo=".len .. ^1]
+      inc i
+      continue
+    if a == "--root" and i + 1 < cs.len:
+      t.root = cs[i + 1]
+      i = i + 2
+      continue
+    if a.startsWith("--root="):
+      t.root = a["--root=".len .. ^1]
+      inc i
+      continue
+    if a == "--mode" and i + 1 < cs.len:
+      t.mode = cs[i + 1]
+      i = i + 2
+      continue
+    if a.startsWith("--mode="):
+      t.mode = a["--mode=".len .. ^1]
+      inc i
+      continue
+    if a == "--replace":
+      t.replace = true
+      inc i
+      continue
+    if a == "--dry-run" or a == "--dryrun":
+      t.dryRun = true
+      inc i
+      continue
+    inc i
+  result = t
+
+proc renderReportText(ls: seq[string], ok: bool, okMsg: string, failMsg: string): string =
+  ## ls: report lines.
+  ## ok: operation status.
+  ## okMsg: message for success without report lines.
+  ## failMsg: message for failure without report lines.
+  if ls.len == 0:
+    if ok:
+      result = okMsg
+    else:
+      result = failMsg
+    return
+  result = ls.join("\n")
+
+proc readPaths(rs: seq[RepoInfo]): seq[string] =
+  ## rs: repository metadata list.
+  var
+    t: seq[string]
+    i: int
+  i = 0
+  while i < rs.len:
+    t.add(rs[i].path)
+    inc i
+  result = t
+
+proc readBranchMode(o: ToolingOptions): string =
+  ## o: command options.
   var
     t: string
-    tRoots: seq[string]
-    tRepos: seq[RepoInfo]
-    tLines: seq[string]
-    tSubCount: int
-    tValkCount: int
-    tRepo: RepoInfo
+    opts: seq[string]
+    idx: int
+  t = o.mode.strip().toLowerAscii()
+  if t in ["main", "nightly", "promote"]:
+    result = t
+    return
+  opts = @[
+    "Switch to main",
+    "Switch to nightly",
+    "Promote nightly to main"
+  ]
+  idx = promptOptions("Select branch action:", opts)
+  if idx < 0:
+    result = ""
+    return
+  case idx
+  of 0:
+    result = "main"
+  of 1:
+    result = "nightly"
+  else:
+    result = "promote"
+
+proc runCommand*(c: ToolingCommand, s: ToolingConfig, o: ToolingOptions): string =
+  ## c: command to run.
+  ## s: tooling configuration.
+  ## o: command-specific options.
+  var
+    t: string
+    roots: seq[string]
+    repos: seq[RepoInfo]
+    lines: seq[string]
+    paths: seq[string]
+    subCount: int
+    valkCount: int
+    repo: RepoInfo
     i: int
-    tReport: ExpandReport
+    eReport: ExpandReport
+    xReport: SubmoduleExtractReport
+    gxReport: SubmoduleExtractGlobalReport
+    fReport: FindLocalSubmodulesReport
+    apReport: AutoPullReport
+    apsReport: AutoPushReport
+    rReport: SubmoduleRefreshReport
+    pReport: PushAllReport
+    bReport: BranchModeReport
+    hReport: RepoHealthReport
+    mode: string
+    ec: int
   case c
   of tcHelp:
     t = buildHelp()
   of tcHealth:
-    tRoots = resolveRoots(s)
-    tRepos = discoverRepos(tRoots)
-    var paths: seq[string] = @[]
-    i = 0
-    while i < tRepos.len:
-      paths.add(tRepos[i].path)
-      inc i
-    var hReport: RepoHealthReport = buildRepoHealthReport(paths)
-    tLines = formatRepoHealthReport(hReport, s.verbose)
-    t = tLines.join("\n")
+    roots = resolveRoots(s)
+    repos = discoverRepos(roots)
+    paths = readPaths(repos)
+    hReport = buildRepoHealthReport(paths)
+    lines = formatRepoHealthReport(hReport, s.verbose)
+    t = lines.join("\n")
   of tcStatus:
-    tRoots = resolveRoots(s)
-    tRepos = discoverRepos(tRoots)
+    roots = resolveRoots(s)
+    repos = discoverRepos(roots)
     i = 0
-    while i < tRepos.len:
-      tRepo = tRepos[i]
-      if tRepo.hasSubmodules:
-        inc tSubCount
-      if tRepo.hasValkyrie:
-        inc tValkCount
+    while i < repos.len:
+      repo = repos[i]
+      if repo.hasSubmodules:
+        subCount = subCount + 1
+      if repo.hasValkyrie:
+        valkCount = valkCount + 1
       inc i
-    tLines = @[
+    lines = @[
       "Valkyrie Tooling Status",
       "",
-      buildRootsText(tRoots),
+      buildRootsText(roots),
       "",
-      "Repo count: " & $tRepos.len,
-      "Repos with submodules: " & $tSubCount,
-      "Repos with valkyrie folder: " & $tValkCount
+      "Repo count: " & $repos.len,
+      "Repos with submodules: " & $subCount,
+      "Repos with valkyrie folder: " & $valkCount
     ]
-    t = tLines.join("\n")
+    t = lines.join("\n")
   of tcScan:
-    tRoots = resolveRoots(s)
-    tRepos = discoverRepos(tRoots)
-    tLines = @[
+    roots = resolveRoots(s)
+    repos = discoverRepos(roots)
+    lines = @[
       "Valkyrie Scan",
       "",
-      buildRootsText(tRoots),
+      buildRootsText(roots),
       "",
-      buildReposText(tRepos, s.verbose)
+      buildReposText(repos, s.verbose)
     ]
-    t = tLines.join("\n")
+    t = lines.join("\n")
   of tcRepos:
-    tRoots = resolveRoots(s)
-    tRepos = discoverRepos(tRoots)
-    t = buildReposText(tRepos, s.verbose)
+    roots = resolveRoots(s)
+    repos = discoverRepos(roots)
+    t = buildReposText(repos, s.verbose)
+  of tcTest:
+    ec = runTestPicker()
+    if ec == 0:
+      t = ""
+    else:
+      t = "Test picker failed."
+  of tcFind:
+    fReport = findLocalSubmodulesFromRoots(o.dryRun)
+    t = renderReportText(fReport.lines, fReport.ok, "Find completed.", "Find failed.")
+  of tcAutoPull:
+    apReport = autoPullFromRoots(o.dryRun)
+    t = renderReportText(apReport.lines, apReport.ok, "Autopull completed.", "Autopull failed.")
+  of tcAutoPush:
+    apsReport = autoPushRepo(o.repo)
+    t = renderReportText(apsReport.lines, apsReport.ok, "Autopush completed.", "Autopush failed.")
   of tcExpand:
-    tReport = expandSubmodule(getCurrentDir(), s.verbose)
-    if tReport.lines.len == 0:
-      if tReport.ok:
-        t = "Expand completed."
-      else:
-        t = "Expand failed."
-    else:
-      t = tReport.lines.join("\n")
+    eReport = expandSubmodule(o.repo, s.verbose)
+    t = renderReportText(eReport.lines, eReport.ok, "Expand completed.", "Expand failed.")
   of tcExtract:
-    var eReport: SubmoduleExtractReport = extractSubmodules(getCurrentDir(), "", false, s.verbose)
-    if eReport.lines.len == 0:
-      if eReport.ok:
-        t = "Extract completed."
-      else:
-        t = "Extract failed."
-    else:
-      t = eReport.lines.join("\n")
+    xReport = extractSubmodules(o.repo, o.root, o.replace, s.verbose)
+    t = renderReportText(xReport.lines, xReport.ok, "Extract completed.", "Extract failed.")
   of tcExtractAll:
-    var gReport: SubmoduleExtractGlobalReport = extractSubmodulesGlobal("", false, s.verbose)
-    if gReport.lines.len == 0:
-      if gReport.ok:
-        t = "Extract-all completed."
-      else:
-        t = "Extract-all failed."
-    else:
-      t = gReport.lines.join("\n")
+    gxReport = extractSubmodulesGlobal(o.root, o.replace, s.verbose)
+    t = renderReportText(gxReport.lines, gxReport.ok, "Extract-all completed.", "Extract-all failed.")
   of tcRefresh:
-    var rReport: SubmoduleRefreshReport = refreshSubmodules()
-    if rReport.lines.len == 0:
-      if rReport.ok:
-        t = "Refresh completed."
-      else:
-        t = "Refresh failed."
-    else:
-      t = rReport.lines.join("\n")
+    rReport = refreshSubmodules()
+    t = renderReportText(rReport.lines, rReport.ok, "Refresh completed.", "Refresh failed.")
   of tcPushAll:
-    var pReport: PushAllReport = pushAllFromParent(s.verbose)
-    if pReport.lines.len == 0:
-      if pReport.ok:
-        t = "Pushall completed."
-      else:
-        t = "Pushall failed."
-    else:
-      t = pReport.lines.join("\n")
+    pReport = pushAllFromParent(s.verbose)
+    t = renderReportText(pReport.lines, pReport.ok, "Pushall completed.", "Pushall failed.")
   of tcBranchMode:
-    var opts: seq[string] = @[
-      "Switch to main",
-      "Switch to nightly",
-      "Promote nightly to main"
-    ]
-    var idx: int = promptOptions("Select branch action:", opts)
-    if idx < 0:
+    mode = readBranchMode(o)
+    if mode.len == 0:
       t = "Branch mode cancelled."
     else:
-      var mode: string
-      case idx
-      of 0:
-        mode = "main"
-      of 1:
-        mode = "nightly"
-      else:
-        mode = "promote"
-      var bReport: BranchModeReport = switchBranchMode(getCurrentDir(), mode)
-      if bReport.lines.len == 0:
-        if bReport.ok:
-          t = "Branch mode completed."
-        else:
-          t = "Branch mode failed."
-      else:
-        t = bReport.lines.join("\n")
+      bReport = switchBranchMode(o.repo, mode)
+      t = renderReportText(bReport.lines, bReport.ok, "Branch mode completed.", "Branch mode failed.")
   of tcVersion:
-    t = "Valkyrie-Tooling v0.1.0"
+    t = "Valkyrie-Tooling v0.2.0"
   result = t
