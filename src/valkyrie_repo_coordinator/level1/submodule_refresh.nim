@@ -1,5 +1,5 @@
 # ==================================================
-# | Jormungandr Repo Coordinator Submodule Refresh |
+# | Valkyrie Repo Coordinator Submodule Refresh |
 # |------------------------------------------------|
 # | Stash local changes in submodules and pull     |
 # | latest main branch.                            |
@@ -47,7 +47,7 @@ proc hasChanges(r: string): bool =
 
 proc runStash(r: string): int =
   ## r: repo path to stash.
-  var c: string = "git -C " & quoteShell(r) & " stash push -u -m \"Jormungandr submodule stash\""
+  var c: string = "git -C " & quoteShell(r) & " stash push -u -m \"Valkyrie submodule stash\""
   result = execCmd(c)
 
 proc runCheckoutMain(r: string): int =
@@ -69,14 +69,14 @@ proc refreshSubmodules*(): SubmoduleRefreshReport =
   var
     report: SubmoduleRefreshReport
     rs: seq[string]
-    cfg: JrcConfig
+    cfg: CoordinatorConfig
     owner: string
     gm: string
     ms: seq[SubmoduleInfo]
     subPath: string
     idx: int
   report.ok = true
-  cfg = readJrcConfig(resolveConfigRoot(getCurrentDir()))
+  cfg = readCoordinatorConfig(resolveConfigRoot(getCurrentDir()))
   rs = collectReposFromRoots()
   addLine(report.lines, "Found " & $rs.len & " repos.")
   if not confirmEnter("Stash local changes and pull submodules under roots?"):

@@ -1,20 +1,21 @@
 # ==================================================
-# | Valkyrie Tooling Embedded Jorm Smoke Tests     |
+# | Valkyrie Tooling Repo Coordinator Smoke Tests  |
 # |------------------------------------------------|
-# | Quick sanity checks for integrated Jorm logic. |
+# | Quick sanity checks for integrated coordinator |
+# | logic.                                         |
 # ==================================================
 
 import std/unittest
-import jormungandr_repo_coordinator/backend/core
-import jormungandr_repo_coordinator/level0/repo_utils
-import jormungandr_repo_coordinator/level1/repo_health
-import jormungandr_repo_coordinator/level1/test_picker
+import valkyrie_repo_coordinator/backend/core
+import valkyrie_repo_coordinator/level0/repo_utils
+import valkyrie_repo_coordinator/level1/repo_health
+import valkyrie_repo_coordinator/level1/test_picker
 
 
-suite "embedded jorm":
+suite "embedded repo coordinator":
   test "init":
-    var c: RepoCoordinatorContext = initRepoCoordinator("Jormungandr", "/tmp")
-    check c.name == "Jormungandr"
+    var c: RepoCoordinatorContext = initRepoCoordinator("Valkyrie", "/tmp")
+    check c.name == "Valkyrie"
     check c.root == "/tmp"
     check c.status == "ready"
 

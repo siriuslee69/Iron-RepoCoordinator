@@ -1,5 +1,5 @@
 # ==================================================
-# | Jormungandr Repo Coordinator Expand Helper     |
+# | Valkyrie Repo Coordinator Expand Helper     |
 # |------------------------------------------------|
 # | Propagate updated submodules across repos.     |
 # ==================================================
@@ -154,7 +154,7 @@ proc expandSubmodule*(r: string, v: bool): ExpandReport =
     target: string
     origin: string
     name: string
-    cfg: JrcConfig
+    cfg: CoordinatorConfig
     owner: string
     doTargetPush: bool
     doExpand: bool
@@ -187,10 +187,10 @@ proc expandSubmodule*(r: string, v: bool): ExpandReport =
     addLine(report.lines, "Target is not a git repo: " & target)
     result = report
     return
-  cfg = readJrcConfig(resolveConfigRoot(target))
+  cfg = readCoordinatorConfig(resolveConfigRoot(target))
   if not ownersConfigured(cfg):
     report.ok = false
-    addLine(report.lines, "No owners configured in valkyrie/jrc.toml (owners=...).")
+    addLine(report.lines, "No owners configured in valkyrie/repo_coordinator.toml (owners=...).")
     addLine(report.lines, "For safety, expand is disabled.")
     result = report
     return

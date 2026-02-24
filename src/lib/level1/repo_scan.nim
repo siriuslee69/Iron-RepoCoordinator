@@ -92,8 +92,6 @@ proc resolveRoots*(s: ToolingConfig): seq[string] =
     tEnv: seq[string]
   tEnv = loadEnvRoots("VALKYRIE_ROOTS")
   if tEnv.len == 0:
-    tEnv = loadEnvRoots("JRC_ROOTS")
-  if tEnv.len == 0:
     tRoots = defaultRoots(s.rootDir)
   else:
     tRoots = tEnv

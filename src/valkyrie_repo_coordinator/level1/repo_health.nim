@@ -1,5 +1,5 @@
 # ==================================================
-# | Jormungandr Repo Health Checks                 |
+# | Valkyrie Repo Health Checks                 |
 # |------------------------------------------------|
 # | Read-only repo health scans (dirty, ahead).    |
 # ==================================================

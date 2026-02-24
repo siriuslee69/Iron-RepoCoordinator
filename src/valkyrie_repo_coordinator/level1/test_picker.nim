@@ -1,5 +1,5 @@
 # ==================================================
-# | Jormungandr Repo Coordinator Test Picker       |
+# | Valkyrie Repo Coordinator Test Picker       |
 # |------------------------------------------------|
 # | Discover and run test tasks across repos.      |
 # ==================================================

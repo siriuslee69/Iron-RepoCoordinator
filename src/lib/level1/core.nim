@@ -7,17 +7,17 @@
 import std/[strutils, os]
 import ../level0/types
 import repo_scan
-import jormungandr_repo_coordinator/level0/repo_utils
-import jormungandr_repo_coordinator/level1/autopull
-import jormungandr_repo_coordinator/level1/autopush
-import jormungandr_repo_coordinator/level1/branch_mode
-import jormungandr_repo_coordinator/level1/expand
-import jormungandr_repo_coordinator/level1/find_local_submodules
-import jormungandr_repo_coordinator/level1/pushall
-import jormungandr_repo_coordinator/level1/repo_health
-import jormungandr_repo_coordinator/level1/submodule_extract
-import jormungandr_repo_coordinator/level1/submodule_refresh
-import jormungandr_repo_coordinator/level1/test_picker
+import valkyrie_repo_coordinator/level0/repo_utils
+import valkyrie_repo_coordinator/level1/autopull
+import valkyrie_repo_coordinator/level1/autopush
+import valkyrie_repo_coordinator/level1/branch_mode
+import valkyrie_repo_coordinator/level1/expand
+import valkyrie_repo_coordinator/level1/find_local_submodules
+import valkyrie_repo_coordinator/level1/pushall
+import valkyrie_repo_coordinator/level1/repo_health
+import valkyrie_repo_coordinator/level1/submodule_extract
+import valkyrie_repo_coordinator/level1/submodule_refresh
+import valkyrie_repo_coordinator/level1/test_picker
 
 
 proc defaultOptions*(): ToolingOptions =
@@ -70,7 +70,6 @@ proc buildHelp*(): string =
     "",
     "Environment:",
     "  VALKYRIE_ROOTS  Roots (Windows ';' or POSIX ':')",
-    "  JRC_ROOTS       Fallback roots (same format)",
     "  VALKYRIE_VERBOSE=1  Enable verbose output"
   ]
   result = ls.join("\n")
@@ -94,7 +93,7 @@ proc parseCommand*(cs: seq[string]): ToolingCommand =
     result = tcScan
   of "repos":
     result = tcRepos
-  of "test", "jormtest":
+  of "test", "repotest":
     result = tcTest
   of "find":
     result = tcFind
