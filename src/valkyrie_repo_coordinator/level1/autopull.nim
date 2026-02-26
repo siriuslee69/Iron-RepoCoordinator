@@ -1,5 +1,5 @@
 # ==================================================
-# | Valkyrie Repo Coordination Autopull Helper     |
+# | Valkyrie Repo Coordinator Autopull Helper   |
 # |------------------------------------------------|
 # | Pull all repos under configured roots.         |
 # ==================================================

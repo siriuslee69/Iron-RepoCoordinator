@@ -1,20 +1,20 @@
 # Progress
 
-Commit Message: Rename embedded repo coordination modules to Valkyrie naming
+Commit Message: Complete Valkyrie coordinator naming cleanup
 
 Features (Planned):
 - Add config bridge JSON for downstream consumers
 
 Features (Done):
-- Embedded repo coordination source modules under Valkyrie naming
+- Embedded coordinator source modules in `src`
 - Added CLI commands for test/find/autopull/autopush
 - Added command flags for repo/root/mode/replace/dry-run
-- Removed the old Jorm/JRC naming surface from the embedded code
-- Added repo coordination smoke tests
+- Removed legacy coordinator submodule dependency from build path
+- Added embedded coordinator smoke tests
 
 Features (In Progress):
 - Broader command regression pass on live multi-repo workflows
 
 Notes:
-- Last change/problem: Valkyrie still exposed Jorm/JRC module names after the merge
-- Fix attempts: Renamed the embedded module tree and config surface to Valkyrie-owned names
+- Last change/problem: Valkyrie depended on a legacy coordinator submodule path and acted as a thin wrapper
+- Fix attempts: Vendored modules + rewired command dispatch to local code (worked in tests)

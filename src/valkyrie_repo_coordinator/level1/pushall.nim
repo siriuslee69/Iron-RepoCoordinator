@@ -1,5 +1,5 @@
 # ==================================================
-# | Valkyrie Repo Coordination Push-All Helper     |
+# | Valkyrie Repo Coordinator Push-All Helper   |
 # |------------------------------------------------|
 # | Commit (when needed) and push all repos in the |
 # | parent directory.                              |
@@ -131,7 +131,7 @@ proc pushAllFromParent*(v: bool = false): PushAllReport =
     hereIsRepo: bool
     parentIsRepo: bool
     configRoot: string
-    cfg: RepoCoordinationConfig
+    cfg: CoordinatorConfig
     rs: seq[string]
     msg: string
     tOwner: string
@@ -174,10 +174,10 @@ proc pushAllFromParent*(v: bool = false): PushAllReport =
   else:
     configRoot = ""
   if configRoot.len > 0:
-    cfg = readRepoCoordinationConfig(configRoot)
+    cfg = readCoordinatorConfig(configRoot)
   if not ownersConfigured(cfg):
     report.ok = false
-    addLine(report.lines, "No owners configured in valkyrie/tooling.toml (owners=...).")
+    addLine(report.lines, "No owners configured in valkyrie/repo_coordinator.toml (owners=...).")
     addLine(report.lines, "For safety, push operations are disabled.")
     result = report
     return

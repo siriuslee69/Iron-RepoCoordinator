@@ -1,5 +1,5 @@
 # ==================================================
-# | Valkyrie Repo Coordination Submodule Finder    |
+# | Valkyrie Repo Coordinator Submodule Finder  |
 # |------------------------------------------------|
 # | Build local submodule overrides under roots.   |
 # ==================================================

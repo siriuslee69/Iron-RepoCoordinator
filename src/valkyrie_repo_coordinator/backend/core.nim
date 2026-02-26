@@ -1,5 +1,5 @@
 # ==================================================
-# | Valkyrie Repo Coordination Backend Core        |
+# | Valkyrie Repo Coordinator Backend Core      |
 # |------------------------------------------------|
 # | Core context placeholders for repo utilities.  |
 # ==================================================

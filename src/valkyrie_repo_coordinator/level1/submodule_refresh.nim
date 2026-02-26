@@ -1,5 +1,5 @@
 # ==================================================
-# | Valkyrie Repo Coordination Submodule Refresh   |
+# | Valkyrie Repo Coordinator Submodule Refresh |
 # |------------------------------------------------|
 # | Stash local changes in submodules and pull     |
 # | latest main branch.                            |
@@ -69,14 +69,14 @@ proc refreshSubmodules*(): SubmoduleRefreshReport =
   var
     report: SubmoduleRefreshReport
     rs: seq[string]
-    cfg: RepoCoordinationConfig
+    cfg: CoordinatorConfig
     owner: string
     gm: string
     ms: seq[SubmoduleInfo]
     subPath: string
     idx: int
   report.ok = true
-  cfg = readRepoCoordinationConfig(resolveConfigRoot(getCurrentDir()))
+  cfg = readCoordinatorConfig(resolveConfigRoot(getCurrentDir()))
   rs = collectReposFromRoots()
   addLine(report.lines, "Found " & $rs.len & " repos.")
   if not confirmEnter("Stash local changes and pull submodules under roots?"):
