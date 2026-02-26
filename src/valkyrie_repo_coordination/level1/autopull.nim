@@ -1,5 +1,5 @@
 # ==================================================
-# | Jormungandr Repo Coordinator Autopull Helper   |
+# | Valkyrie Repo Coordination Autopull Helper     |
 # |------------------------------------------------|
 # | Pull all repos under configured roots.         |
 # ==================================================

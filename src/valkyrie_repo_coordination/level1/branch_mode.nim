@@ -1,5 +1,5 @@
 # ==================================================
-# | Jormungandr Repo Coordinator Branch Mode       |
+# | Valkyrie Repo Coordination Branch Mode         |
 # |------------------------------------------------|
 # | Switch between main/nightly and promote.       |
 # ==================================================
@@ -172,17 +172,17 @@ proc switchBranchMode*(r: string, mode: string): BranchModeReport =
   ## mode: main/nightly/promote.
   var report: BranchModeReport
   var repo: string = normalizePathValue(r)
-  var cfg: JrcConfig
+  var cfg: RepoCoordinationConfig
   var owner: string
   report.ok = true
   if repo.len == 0 or not isGitRepo(repo):
     report.ok = false
     addLine(report.lines, "Target is not a git repo: " & repo)
     return report
-  cfg = readJrcConfig(resolveConfigRoot(repo))
+  cfg = readRepoCoordinationConfig(resolveConfigRoot(repo))
   if not ownersConfigured(cfg):
     report.ok = false
-    addLine(report.lines, "No owners configured in valkyrie/jrc.toml (owners=...).")
+    addLine(report.lines, "No owners configured in valkyrie/tooling.toml (owners=...).")
     addLine(report.lines, "For safety, branch mode is disabled.")
     return report
   owner = resolveRepoOwner(repo)

@@ -1,5 +1,5 @@
 # ==================================================
-# | Jormungandr Repo Coordinator Autopush Helper   |
+# | Valkyrie Repo Coordination Autopush Helper     |
 # |------------------------------------------------|
 # | Commit and push the current repository.        |
 # ==================================================
@@ -90,7 +90,7 @@ proc autoPushRepo*(r: string): AutoPushReport =
   var
     tReport: AutoPushReport
     repo: string
-    cfg: JrcConfig
+    cfg: RepoCoordinationConfig
     owner: string
     msg: string
   tReport.ok = true
@@ -107,10 +107,10 @@ proc autoPushRepo*(r: string): AutoPushReport =
     addLine(tReport.lines, "No remote configured.")
     result = tReport
     return
-  cfg = readJrcConfig(resolveConfigRoot(repo))
+  cfg = readRepoCoordinationConfig(resolveConfigRoot(repo))
   if not ownersConfigured(cfg):
     tReport.ok = false
-    addLine(tReport.lines, "No owners configured in valkyrie/jrc.toml (owners=...).")
+    addLine(tReport.lines, "No owners configured in valkyrie/tooling.toml (owners=...).")
     addLine(tReport.lines, "For safety, autopush is disabled.")
     result = tReport
     return

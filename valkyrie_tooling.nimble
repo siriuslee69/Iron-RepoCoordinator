@@ -2,7 +2,7 @@ import std/[os, strutils]
 
 version       = "0.2.0"
 author        = "siriuslee69"
-description   = "CLI-first multi-repo tooling with embedded Jormungandr features"
+description   = "CLI-first multi-repo tooling with built-in repo coordination"
 license       = "UNLICENSED"
 srcDir        = "src"
 bin           = @["valkyrie_cli", "val"]
@@ -21,7 +21,7 @@ task runVal, "Run the short CLI alias":
 
 task test, "Run unit tests":
   exec "nim c -r tests/test_smoke.nim"
-  exec "nim c -r tests/test_jorm_smoke.nim"
+  exec "nim c -r tests/test_repo_coordination_smoke.nim"
 
 task autopull, "Pull all repos under configured roots":
   exec "nim c -r src/val.nim -- autopull"
@@ -49,9 +49,6 @@ task extract_submodules_global, "Extract submodules for all repos under roots":
 
 task branch_mode, "Switch repo between main/nightly or promote nightly":
   exec "nim c -r src/val.nim -- branch"
-
-task jormtest, "Pick and run a test task (nimble + eitri)":
-  exec "nim c -r src/val.nim -- test"
 
 task autopush, "Add, commit, and push with message from progress.md":
   let path = "progress.md"

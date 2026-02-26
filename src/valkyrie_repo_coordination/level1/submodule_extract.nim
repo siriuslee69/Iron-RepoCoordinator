@@ -1,5 +1,5 @@
 # ==================================================
-# | Jormungandr Repo Coordinator Submodule Extract |
+# | Valkyrie Repo Coordination Submodule Extract   |
 # |------------------------------------------------|
 # | Clone submodules into sibling repos and        |
 # | apply local overrides for the parent repo.     |
@@ -247,7 +247,7 @@ proc extractSubmodules*(r: string, rootOverride: string,
     report: SubmoduleExtractReport
     repo: string
     rootDir: string
-    cfg: JrcConfig
+    cfg: RepoCoordinationConfig
     owner: string
     gm: string
     gi: string
@@ -264,10 +264,10 @@ proc extractSubmodules*(r: string, rootOverride: string,
     report.ok = false
     addLine(report.lines, "Target is not a git repo: " & repo)
     return report
-  cfg = readJrcConfig(resolveConfigRoot(repo))
+  cfg = readRepoCoordinationConfig(resolveConfigRoot(repo))
   if not ownersConfigured(cfg):
     report.ok = false
-    addLine(report.lines, "No owners configured in valkyrie/jrc.toml (owners=...).")
+    addLine(report.lines, "No owners configured in valkyrie/tooling.toml (owners=...).")
     addLine(report.lines, "For safety, submodule extract is disabled.")
     return report
   owner = resolveRepoOwner(repo)

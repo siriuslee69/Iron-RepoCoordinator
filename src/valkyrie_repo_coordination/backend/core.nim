@@ -1,5 +1,5 @@
 # ==================================================
-# | Jormungandr Repo Coordinator Backend Core      |
+# | Valkyrie Repo Coordination Backend Core        |
 # |------------------------------------------------|
 # | Core context placeholders for repo utilities.  |
 # ==================================================

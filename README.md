@@ -1,6 +1,6 @@
 # Valkyrie-Tooling
 
-Valkyrie is a CLI-first multi-repo tooling project in Nim. Jormungandr functionality is embedded directly in this repository so Valkyrie is no longer only a wrapper around an external Jorm submodule.
+Valkyrie is a CLI-first multi-repo tooling project in Nim. Repo coordination is implemented directly in this repository under Valkyrie-owned modules.
 
 ## Goals
 - Keep one practical CLI surface for multi-repo workflows.
@@ -11,8 +11,8 @@ Valkyrie is a CLI-first multi-repo tooling project in Nim. Jormungandr functiona
 - `src/cli/level1/` CLI runner and entrypoints (`valkyrie_cli`, `val`)
 - `src/lib/level0/` base types and config
 - `src/lib/level1/` command parsing, dispatch, root scanning
-- `src/jormungandr_repo_coordinator/` embedded repo-coordination modules
-- `tests/` smoke tests for Valkyrie + embedded Jorm behavior
+- `src/valkyrie_repo_coordination/` repo-coordination modules
+- `tests/` smoke tests for Valkyrie + repo coordination behavior
 - `submodules/` optional external tooling dependencies
 
 ## Quick Start
@@ -35,13 +35,13 @@ Common commands:
 - `val pushall`
 
 ## Configuration
-- Roots are discovered from `VALKYRIE_ROOTS` first, then `JRC_ROOTS`.
+- Roots are discovered from `VALKYRIE_ROOTS`.
   - Windows separator: `;`
   - POSIX separator: `:`
 - Verbose output:
   - CLI flag: `--verbose`
   - Env flag: `VALKYRIE_VERBOSE=1`
-- Ownership safety is configured via `valkyrie/jrc.toml`:
+- Ownership safety is configured via `VALKYRIE_OWNERS`, `VALKYRIE_FOREIGN_MODE`, or `valkyrie/tooling.toml`:
 
 ```toml
 owners = "siriuslee69"
@@ -57,7 +57,7 @@ Write actions require `owners` to be configured.
 
 ## Issue Playbook
 - Problem: write actions are blocked with `No owners configured`.
-  - Workaround: set `owners` in `valkyrie/jrc.toml`.
+  - Workaround: set `owners` in `valkyrie/tooling.toml` or `VALKYRIE_OWNERS`.
 - Problem: `find` or `expand` does not link a submodule.
   - Workaround: ensure matching local clone name/path and check `.gitmodules` entries.
 - Problem: branch switching fails on dirty repo state.

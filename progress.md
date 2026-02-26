@@ -1,8 +1,8 @@
-Commit Message: Embed Jormungandr modules into Valkyrie CLI and remove submodule dependency
+Commit Message: Rename embedded repo coordination modules to Valkyrie naming
 
 Features (Total):
 1. CLI command parsing and dispatch
-2. Embedded Jormungandr repo coordination
+2. Embedded repo coordination
 3. Package manager integration hooks (Eitri)
 4. Repo scanning/listing and health checks
 5. Submodule override flows (find/expand/extract)
@@ -11,23 +11,22 @@ Features (Total):
 8. Unit and smoke tests
 
 Features (Implemented):
-1. Local Jormungandr source vendored under `src/jormungandr_repo_coordinator/`
+1. Local repo coordination source lives under `src/valkyrie_repo_coordination/`
 2. CLI commands added: `test`, `find`, `autopull`, `autopush`
 3. CLI flags added: `--repo`, `--root`, `--mode`, `--replace`, `--dry-run`
-4. Jormungandr submodule path removed from `config.nims`
-5. Jormungandr submodule removed from `.gitmodules`
-6. Nimble tasks aligned with embedded CLI commands
-7. New embedded Jorm smoke test file
-8. README updated with CLI-first architecture and issue playbook
+4. Old JRC env/config naming removed from the embedded modules
+5. Nimble tasks aligned with embedded CLI commands
+6. Repo coordination smoke test renamed and kept in Valkyrie namespace
+7. README updated with CLI-first architecture and issue playbook
 
 Features (Working On):
 1. Additional validation and regression checks after merge
 
 Last Big Change or Problem:
-1. Valkyrie depended on Jormungandr via submodule path and behaved like a thin wrapper
+1. Valkyrie still exposed old imported module and config names after the merge
 
 Fix Attempt and Result:
-1. Moved Jorm modules into Valkyrie source and rewired command dispatch to local modules; integration compiled after follow-up fixes
+1. Renamed the embedded module tree to Valkyrie-owned paths and config names; validation pending
 
 Features (Planned):
 - Add JSON bridge config for external dependency consumers
