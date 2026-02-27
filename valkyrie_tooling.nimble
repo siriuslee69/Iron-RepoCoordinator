@@ -53,8 +53,8 @@ task branch_mode, "Switch repo between main/nightly or promote nightly":
 task repotest, "Pick and run a test task (nimble + eitri)":
   exec "nim c -r src/val.nim -- test"
 
-task autopush, "Add, commit, and push with message from progress.md":
-  let path = "progress.md"
+task autopush, "Add, commit, and push with message from valk/progress.md":
+  let path = "valk/progress.md"
   var msg = ""
   if fileExists(path):
     let content = readFile(path)
