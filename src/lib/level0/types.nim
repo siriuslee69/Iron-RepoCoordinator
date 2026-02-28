@@ -9,6 +9,9 @@ type
     tcScan,
     tcRepos,
     tcTest,
+    tcDocsInit,
+    tcDocs,
+    tcShow,
     tcExpand,
     tcExtract,
     tcExtractAll,
@@ -23,8 +26,15 @@ type
     repo*: string
     root*: string
     mode*: string
+    srcPath*: string
+    docsOut*: string
+    pipelinePath*: string
     replace*: bool
     dryRun*: bool
+    once*: bool
+    loops*: int
+    intervalMs*: int
+    overwrite*: bool
   ToolingConfig* = object
     rootDir*: string
     verbose*: bool

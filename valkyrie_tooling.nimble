@@ -1,6 +1,6 @@
 import std/[os, strutils]
 
-version       = "0.2.0"
+version       = "0.3.0"
 author        = "siriuslee69"
 description   = "CLI-first multi-repo tooling with embedded repo-coordinator features"
 license       = "UNLICENSED"
@@ -52,6 +52,15 @@ task branch_mode, "Switch repo between main/nightly or promote nightly":
 
 task repotest, "Pick and run a test task (nimble + eitri)":
   exec "nim c -r src/val.nim -- test"
+
+task docs_init, "Scaffold docs + pipeline files in valk/":
+  exec "nim c -r src/val.nim -- docs-init --repo ."
+
+task docs, "Generate library docs markdown + JSON bridge":
+  exec "nim c -r src/val.nim -- docs --repo ."
+
+task show, "Render one frame of the local pipeline graph":
+  exec "nim c -r src/val.nim -- show --repo . --once"
 
 task autopush, "Add, commit, and push with message from valk/progress.md":
   let path = "valk/progress.md"

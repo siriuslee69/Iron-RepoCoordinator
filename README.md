@@ -25,6 +25,9 @@ Common commands:
 - `val status`
 - `val health`
 - `val test`
+- `val docs-init --repo .`
+- `val docs --repo .`
+- `val show --repo . --pipeline valk/pipeline.json`
 - `val find`
 - `val autopull`
 - `val autopush`
@@ -33,6 +36,69 @@ Common commands:
 - `val extract-all --root <path>`
 - `val branch --mode main|nightly|promote`
 - `val pushall`
+
+Extended docs/pipeline flags:
+- `--src <path>` source directory for docs scan (`docs` command)
+- `--docs-out <path>` markdown output path for generated docs
+- `--pipeline <path>` pipeline JSON to render in `show`
+- `--once` render one frame and exit
+- `--loops <int>` max frames for `show` (`0` keeps running)
+- `--interval-ms <int>` refresh interval for `show`
+- `--overwrite` allow `docs-init` to overwrite scaffold files
+
+## Autonomous Library Docs
+- Run `val docs-init --repo .` once to scaffold:
+  - `valk/pipeline.json`
+  - `valk/pipeline.library.json`
+  - `valk/docs_instructionset.md`
+  - `valk/illwill_pipeline_example.nim`
+- Run `val docs --repo .` to generate:
+  - `valk/docs/library_api.md` (human-readable overview)
+  - `valk/docs/library_api.json` (AI-friendly bridge)
+
+The generated docs include:
+- module index
+- import hints
+- exported symbol map
+- missing-doc coverage counts
+
+## Pipeline Viewer (`val show`)
+`val show` reads `valk/pipeline.json` (or `pipeline.library.json`) as a JSON tree, then draws an updating ASCII dependency view in a loop. It re-reads the file every frame, so an agent can edit the pipeline while the viewer is running.
+
+Example:
+- `val show --repo . --pipeline valk/pipeline.json --interval-ms 600`
+- `val show --repo . --once`
+
+Pipeline JSON shape:
+
+```json
+{
+  "name": "Library Maintenance Pipeline",
+  "description": "Track current work and dependencies.",
+  "intervalMs": 700,
+  "root": {
+    "id": "plan",
+    "label": "Plan changes",
+    "status": "done",
+    "details": "Outline touched modules.",
+    "children": [
+      {
+        "id": "edit",
+        "label": "Implement edits",
+        "status": "active",
+        "children": []
+      }
+    ]
+  }
+}
+```
+
+Status values:
+- `todo`
+- `active`
+- `done`
+- `blocked`
+- `failed`
 
 ## Configuration
 - Roots are discovered from `VALKYRIE_ROOTS`.
@@ -76,3 +142,5 @@ Write actions require `owners` to be configured.
 - Use `i/j/k` for indices and `l/m/n` for lengths.
 - Keep tests in `tests/` and run them after changes.
 - Update `progress.md` and this README for major changes.
+- Keep `valk/pipeline.json` current during active development.
+- Regenerate `valk/docs/library_api.md` and `valk/docs/library_api.json` after meaningful API changes.

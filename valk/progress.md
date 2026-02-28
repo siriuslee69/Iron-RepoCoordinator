@@ -1,4 +1,4 @@
-Commit Message: Remove remaining legacy naming and use Valkyrie coordinator namespace only
+Commit Message: Add autonomous library docs generation and live pipeline viewer commands
 
 Features (Total):
 1. CLI command parsing and dispatch
@@ -9,6 +9,9 @@ Features (Total):
 6. Multi-repo git operations (autopull/autopush/pushall/branch)
 7. Test discovery picker
 8. Unit and smoke tests
+9. Autonomous library docs generation (markdown + JSON bridge)
+10. Live ASCII pipeline visualization for active development status
+11. Docs/pipeline scaffolding templates for AI-agent workflows
 
 Features (Implemented):
 1. Local coordinator source vendored under `src/valkyrie_repo_coordinator/`
@@ -21,15 +24,22 @@ Features (Implemented):
 8. README updated with CLI-first architecture and issue playbook
 9. Embedded source namespace moved to `valkyrie_repo_coordinator`
 10. Removed remaining legacy compatibility alias module
+11. New commands: `docs-init`, `docs`, `show`
+12. New flags: `--src`, `--docs-out`, `--pipeline`, `--once`, `--loops`, `--interval-ms`, `--overwrite`
+13. Added `src/lib/level1/library_docs.nim` for autonomous API docs + JSON bridge output
+14. Added `src/lib/level1/pipeline_show.nim` for JSON tree parsing + live ASCII rendering loop
+15. Added `valk/pipeline.json`, `valk/pipeline.library.json`, and `valk/docs_instructionset.md` templates
+16. Added `valk/illwill_pipeline_example.nim` for terminal animation reference
+17. Extended smoke tests for docs generation and pipeline parsing/rendering
 
 Features (Working On):
 1. Additional validation and regression checks after merge
 
 Last Big Change or Problem:
-1. Valkyrie depended on a separately named coordinator path and behaved like a thin wrapper
+1. Needed a maintainable docs pipeline usable by both humans and AI agents, plus live progress visualization
 
 Fix Attempt and Result:
-1. Moved coordinator modules into Valkyrie source and rewired command dispatch to local modules; integration compiled after follow-up fixes
+1. Added dedicated docs/pipeline modules, wired new CLI commands/options, and scaffolded reusable templates; smoke tests updated to guard behavior
 
 Features (Planned):
-- Add JSON bridge config for external dependency consumers
+- Add optional Illwill-backed renderer mode directly inside `val show` when dependency is installed

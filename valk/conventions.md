@@ -157,6 +157,13 @@ Update the README when you make bigger project changes.
 
 At the bottom of the README of a project, include a cleaner, more formatted version of these conventions so maintainers can quickly understand the programming style.
 
+For library repos, maintain an autonomous docs bridge:
+- Keep `valk/pipeline.json` updated with current implementation steps and dependency flow.
+- Use `val show` during development to visualize current work as live ASCII tree output.
+- Run `val docs` after meaningful code changes to regenerate:
+  - `valk/docs/library_api.md` for human maintainers
+  - `valk/docs/library_api.json` for AI-agent consumption
+
 ## Tools and Tests
 
 - Add a `tools` folder when needed (for submodule builders or other pre-compile time utilities).

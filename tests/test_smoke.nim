@@ -72,6 +72,18 @@ suite "valkyrie tooling":
     c = parseCommand(cs)
     check c == tcExpand
 
+  test "parseCommand docs and show":
+    var
+      c: ToolingCommand
+    c = parseCommand(@["docs"])
+    check c == tcDocs
+    c = parseCommand(@["docs-init"])
+    check c == tcDocsInit
+    c = parseCommand(@["show"])
+    check c == tcShow
+    c = parseCommand(@["--", "show"])
+    check c == tcShow
+
   test "parseOptions for extract":
     var
       cs: seq[string]
@@ -89,6 +101,31 @@ suite "valkyrie tooling":
     check o.root == "F:/CodingMain"
     check o.replace
     check o.dryRun
+
+  test "parseOptions docs/show flags":
+    var
+      cs: seq[string]
+      o: ToolingOptions
+    cs = @[
+      "show",
+      "--repo=F:/CodingMain/RepoA",
+      "--pipeline=valk/pipeline.json",
+      "--interval-ms=333",
+      "--loops=4",
+      "--once",
+      "--overwrite",
+      "--src=src",
+      "--docs-out=valk/docs/library_api.md"
+    ]
+    o = parseOptions(cs)
+    check o.repo == "F:/CodingMain/RepoA"
+    check o.pipelinePath == "valk/pipeline.json"
+    check o.intervalMs == 333
+    check o.loops == 4
+    check o.once
+    check o.overwrite
+    check o.srcPath == "src"
+    check o.docsOut == "valk/docs/library_api.md"
 
   test "parseRoots windows drive":
     var
@@ -134,5 +171,91 @@ suite "valkyrie tooling":
       check tHasB
       check tHasSub
       check tHasValk
+    finally:
+      removeTree(tRoot)
+
+  test "docs-init scaffold and docs generation":
+    var
+      tRoot: string
+      tSrc: string
+      tModule: string
+      initReport: DocsInitReport
+      docsReport: LibraryDocsReport
+      mdText: string
+      jsonText: string
+    tRoot = newTempRoot("valkyrie_docs")
+    try:
+      createDir(joinPath(tRoot, "valk"))
+      tSrc = joinPath(tRoot, "src")
+      createDir(tSrc)
+      tModule = joinPath(tSrc, "sample_lib.nim")
+      writeFile(tModule, """
+# Sample module
+import std/strutils
+
+proc greet*(name: string): string =
+  ## name: caller name.
+  result = "Hello, " & name.strip()
+
+proc helper(x: int): int =
+  result = x + 1
+""")
+      initReport = initDocsScaffold(tRoot, false)
+      check initReport.ok
+      check fileExists(joinPath(tRoot, "valk", "pipeline.json"))
+      check fileExists(joinPath(tRoot, "valk", "docs_instructionset.md"))
+      docsReport = generateLibraryDocs(tRoot, "", "")
+      check docsReport.ok
+      check fileExists(docsReport.markdownPath)
+      check fileExists(docsReport.jsonPath)
+      mdText = readFile(docsReport.markdownPath)
+      jsonText = readFile(docsReport.jsonPath)
+      check mdText.contains("sample_lib.nim")
+      check mdText.contains("greet*")
+      check jsonText.contains("\"name\": \"greet\"")
+    finally:
+      removeTree(tRoot)
+
+  test "pipeline parse and render":
+    var
+      tRoot: string
+      tValk: string
+      tPipeline: string
+      parseResult: PipelineParseResult
+      frameText: string
+      resolved: string
+    tRoot = newTempRoot("valkyrie_pipeline")
+    try:
+      tValk = joinPath(tRoot, "valk")
+      createDir(tValk)
+      tPipeline = joinPath(tValk, "pipeline.json")
+      writeFile(tPipeline, """
+{
+  "name": "Test Pipeline",
+  "intervalMs": 250,
+  "root": {
+    "id": "root",
+    "label": "Root Step",
+    "status": "active",
+    "children": [
+      {
+        "id": "child_a",
+        "label": "Child A",
+        "status": "todo",
+        "children": []
+      }
+    ]
+  }
+}
+""")
+      resolved = resolvePipelinePath(tRoot, "")
+      check resolved == tPipeline
+      parseResult = readPipelineSpec(tPipeline)
+      check parseResult.ok
+      check parseResult.spec.name == "Test Pipeline"
+      frameText = renderPipelineFrame(parseResult.spec, 2, tPipeline)
+      check frameText.contains("Root Step")
+      check frameText.contains("Child A")
+      check frameText.contains("RUN")
     finally:
       removeTree(tRoot)
