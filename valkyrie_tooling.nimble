@@ -1,4 +1,4 @@
-import std/[os, strutils]
+﻿import std/[os, strutils]
 
 version       = "0.3.0"
 author        = "siriuslee69"
@@ -102,3 +102,8 @@ task find_current, "Use local clones for submodules in parent folder (current re
             exec "git config -f .gitmodules submodule." & current & ".url " & localUrl
             exec "git config submodule." & current & ".url " & localUrl
     exec "git submodule sync --recursive"
+
+task smoke, "Run smoke tests":
+  exec "nim c -r ../tests/test_repo_coordinator_smoke.nim"
+  exec "nim c -r ../tests/test_smoke.nim"
+
