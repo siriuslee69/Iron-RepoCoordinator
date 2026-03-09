@@ -7,6 +7,7 @@
 
 import std/[os, strutils, osproc]
 import ../level0/repo_utils
+import submodule_links
 
 
 type
@@ -258,6 +259,7 @@ proc extractSubmodules*(r: string, rootOverride: string,
     dest: string
     merged: seq[SubmoduleInfo]
     outcome: CloneOutcome
+    linkReport: SubmoduleLinkReport
   report.ok = true
   repo = normalizePathValue(r)
   if repo.len == 0 or not isGitRepo(repo):
@@ -314,8 +316,11 @@ proc extractSubmodules*(r: string, rootOverride: string,
   if applyLocalConfig(repo, merged) != 0:
     report.ok = false
     addLine(report.lines, "Failed to apply local git config.")
-  discard runGit(repo, "submodule sync --recursive")
-  discard runGit(repo, "submodule update --init --recursive")
+  linkReport = linkConfiguredSubmodules(repo, locals, true)
+  if not linkReport.ok:
+    report.ok = false
+  for line in linkReport.lines:
+    addLine(report.lines, line)
   addLine(report.lines, "Cloned: " & $report.cloned)
   addLine(report.lines, "Linked: " & $report.linked)
   addLine(report.lines, "Skipped: " & $report.skipped)

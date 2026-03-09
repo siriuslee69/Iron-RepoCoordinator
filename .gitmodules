@@ -1,15 +1,15 @@
 [submodule "submodules/Eitri-NimPackageManager"]
 	path = submodules/Eitri-NimPackageManager
-	url = F:/CodingMain/Eitri-NimPackageManager
+	url = https://github.com/siriuslee69/Eitri-NimPackageManager
 [submodule "submodules/Yggdrasil-ASCIIArt"]
 	path = submodules/Yggdrasil-ASCIIArt
-	url = F:/CodingMain/Yggdrasil-ASCIIArt
+	url = https://github.com/siriuslee69/Yggdrasil-ASCIIArt
 [submodule "submodules/Tyr-Crypto"]
 	path = submodules/Tyr-Crypto
-	url = F:/CodingMain/Tyr-Crypto
+	url = https://github.com/siriuslee69/Tyr-Crypto.git
 [submodule "submodules/Sigma-BenchAndEval"]
 	path = submodules/Sigma-BenchAndEval
-	url = F:/CodingMain/Sigma-BenchAndEval
+	url = https://github.com/siriuslee69/Sigma-BenchAndEval
 [submodule "submodules/proto-conventions"]
 	path = submodules/proto-conventions
-	url = F:/CodingMain/proto-conventions
+	url = https://github.com/siriuslee69/Proto-RepoTemplate.git

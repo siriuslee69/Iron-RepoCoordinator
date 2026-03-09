@@ -17,6 +17,7 @@ type
     tcExpand,
     tcExtract,
     tcExtractAll,
+    tcExternalize,
     tcFind,
     tcAutoPull,
     tcAutoPush,
@@ -24,6 +25,7 @@ type
     tcPushAll,
     tcBranchMode,
     tcConflicts,
+    tcSyncConventions,
     tcVersion
   ToolingOptions* = object
     repo*: string

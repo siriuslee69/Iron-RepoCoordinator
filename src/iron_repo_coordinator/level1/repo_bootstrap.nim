@@ -6,6 +6,7 @@
 
 import std/[os, strutils, osproc]
 import ../level0/repo_utils
+import submodule_links
 
 
 type
@@ -98,19 +99,37 @@ proc removeTree(p: string) =
     removeDir(p)
 
 proc ensureTemplateSource(repoPath: string): string =
-  ## repoPath: target repo path used to locate proto-conventions templates.
+  ## repoPath: target repo path used to locate Proto-RepoTemplate templates.
   var
     d: string
     i: int
     c: string
     repoRoot: string
   repoRoot = normalizePathValue(repoPath)
+  c = joinPath(repoRoot, "submodules", "Proto-RepoTemplate", ".iron")
+  if dirExists(c):
+    return c
+  c = joinPath(repoRoot, "submodules", "Proto-TemplateRepo", ".iron")
+  if dirExists(c):
+    return c
   c = joinPath(repoRoot, "submodules", "proto-conventions", ".iron")
   if dirExists(c):
     return c
   d = normalizePathValue(repoPath)
   i = 0
   while i < 6 and d.len > 0:
+    c = joinPath(d, "Proto-RepoTemplate", ".iron")
+    if dirExists(c):
+      return c
+    c = joinPath(parentDir(d), "Proto-RepoTemplate", ".iron")
+    if dirExists(c):
+      return c
+    c = joinPath(d, "Proto-TemplateRepo", ".iron")
+    if dirExists(c):
+      return c
+    c = joinPath(parentDir(d), "Proto-TemplateRepo", ".iron")
+    if dirExists(c):
+      return c
     c = joinPath(d, "proto-conventions", ".iron")
     if dirExists(c):
       return c
@@ -308,6 +327,7 @@ proc cloneSubmodulesToParent(repo: string, parentDir: string, ms: seq[SubmoduleI
     m2: SubmoduleInfo
     gl: string
     merged: seq[SubmoduleInfo]
+    linkReport: SubmoduleLinkReport
   for m in ms:
     name = resolveLocalName(m)
     if name.len == 0:
@@ -375,7 +395,11 @@ proc cloneSubmodulesToParent(repo: string, parentDir: string, ms: seq[SubmoduleI
     addLine(report.lines, "Failed to apply local submodule config.")
   else:
     addLine(report.lines, "Applied local submodule overrides to " & LocalModulesFile)
-  runSubmoduleUpdate(repo, report)
+  linkReport = linkConfiguredSubmodules(repo, localEntries, true)
+  if not linkReport.ok:
+    report.ok = false
+  for line in linkReport.lines:
+    addLine(report.lines, line)
 
 proc setupSubmodulesAfterClone(repo: string, report: var CloneRepoReport) =
   ## repo: repository root path.
@@ -389,6 +413,7 @@ proc setupSubmodulesAfterClone(repo: string, report: var CloneRepoReport) =
     locals: seq[SubmoduleInfo]
     gl: string
     merged: seq[SubmoduleInfo]
+    linkReport: SubmoduleLinkReport
   gm = joinPath(repo, ".gitmodules")
   if not fileExists(gm):
     addLine(report.lines, "No submodules found in cloned repo.")
@@ -420,7 +445,11 @@ proc setupSubmodulesAfterClone(repo: string, report: var CloneRepoReport) =
         addLine(report.lines, "Failed to apply local submodule config.")
       else:
         addLine(report.lines, "Linked " & $locals.len & " submodules from local clones.")
-      runSubmoduleUpdate(repo, report)
+      linkReport = linkConfiguredSubmodules(repo, locals, true)
+      if not linkReport.ok:
+        report.ok = false
+      for line in linkReport.lines:
+        addLine(report.lines, line)
       return
     addLine(report.lines, "No local submodule matches found in parent folder.")
     idx = promptOptionsDefault("Clone submodules instead?", @[

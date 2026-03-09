@@ -14,7 +14,7 @@ iron is a CLI-first multi-repo tooling project in Nim. Repo-coordinator function
 - `src/iron_repo_coordinator/level0|level1|backend/` embedded repo-coordination modules
 - `tests/` smoke tests for iron + embedded coordinator behavior
 - `submodules/` optional external tooling dependencies
-  - includes `submodules/proto-conventions` as the shared conventions source
+  - uses `Proto-RepoTemplate` as the shared conventions source
 
 ## Quick Start
 - Build CLI: `nimble buildCli`

@@ -6,6 +6,7 @@
 
 import std/[os, strutils, osproc]
 import ../level0/repo_utils
+import submodule_links
 
 
 type
@@ -114,25 +115,6 @@ proc upsertLocalModules(p: string, ms: seq[SubmoduleInfo]): seq[SubmoduleInfo] =
   writeLocalModules(p, merged)
   result = merged
 
-proc updateSubmodule(r, p: string): int =
-  ## r: repo path.
-  ## p: submodule path to update.
-  var
-    c1: string
-    c2: string
-    c3: string
-    tSub: string
-    ec: int
-  c1 = "git -C " & quoteShell(r) & " submodule update --init --recursive -- " & quoteShell(p)
-  ec = execCmd(c1)
-  if ec != 0:
-    return ec
-  tSub = joinPath(r, p)
-  c2 = "git -C " & quoteShell(tSub) & " checkout main"
-  discard execCmd(c2)
-  c3 = "git -C " & quoteShell(tSub) & " pull --ff-only"
-  result = execCmd(c3)
-
 proc expandSubmodule*(r: string, v: bool): ExpandReport =
   ## r: repo path to expand from.
   ## v: verbose output toggle.
@@ -160,6 +142,7 @@ proc expandSubmodule*(r: string, v: bool): ExpandReport =
     msg: string
     localUrl: string
     fail: int
+    linkReport: SubmoduleLinkReport
     i: int
     j: int
   report.ok = true
@@ -281,14 +264,12 @@ proc expandSubmodule*(r: string, v: bool): ExpandReport =
     if fail != 0:
       report.ok = false
       addLine(report.lines, "  Failed to update git config.")
-    j = 0
-    while j < hits.len:
-      m = hits[j]
-      if updateSubmodule(repo, m.path) != 0:
-        report.ok = false
-        addLine(report.lines, "  Submodule update failed: " & m.path)
-      report.updatedSubmodules = report.updatedSubmodules + 1
-      inc j
+    linkReport = linkConfiguredSubmodules(repo, locals, true)
+    if not linkReport.ok:
+      report.ok = false
+    for line in linkReport.lines:
+      addLine(report.lines, "  " & line)
+    report.updatedSubmodules = report.updatedSubmodules + linkReport.linked
     report.updatedRepos = report.updatedRepos + 1
     inc i
   addLine(report.lines, "Updated repos: " & $report.updatedRepos)

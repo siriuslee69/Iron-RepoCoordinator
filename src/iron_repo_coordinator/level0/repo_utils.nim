@@ -57,7 +57,11 @@ proc isTruthyEnv*(envName: string): bool =
 
 proc normalizePathValue*(p: string): string =
   ## p: path to normalize for consistent matching.
-  var t: string = expandFilename(p)
+  var t: string
+  try:
+    t = expandFilename(p)
+  except OSError:
+    t = p
   t = t.replace('\\', '/')
   if t.len > 1 and t.endsWith("/"):
     t = t[0 .. ^2]
@@ -193,6 +197,28 @@ proc readOriginUrl*(r: string): string =
   result = t.output.strip()
 
 proc normalizeRemoteUrl*(u: string): string
+
+proc splitRootList(v: string): seq[string] =
+  ## v: raw root list (Windows ';' or POSIX ':').
+  var
+    parts: seq[string]
+    sep: char
+    t: string
+  t = v.strip()
+  if t.len == 0:
+    return @[]
+  if t.contains(';'):
+    sep = ';'
+    parts = t.split(sep)
+  elif t.contains(":\\") or t.contains(":/"):
+    parts = @[t]
+  else:
+    sep = ':'
+    parts = t.split(sep)
+  result = @[]
+  for p in parts:
+    if p.strip().len > 0:
+      result.add(p.strip())
 
 proc extractOriginOwner*(u: string): string =
   ## u: remote url to parse owner/user from.
@@ -400,21 +426,24 @@ proc scanRoot(rs: var seq[string], ss: var HashSet[string], r: string) =
   ## rs: repo list to append to.
   ## ss: repo set for de-duplication.
   ## r: root directory to scan.
-  var ds: seq[string] = @[]
-  var n: string
+  var
+    ds: seq[string] = @[]
+    n: string
+    rootDir: string
+  rootDir = normalizePathValue(r)
+  if rootDir.len == 0:
+    return
+  if hasGitMarker(rootDir):
+    addRepo(rs, ss, rootDir)
+    return
   try:
-    for kind, path in walkDir(r):
+    for kind, path in walkDir(rootDir):
       n = lastPathPart(path)
       if kind == pcDir:
-        if n == ".git":
-          addRepo(rs, ss, parentDir(path))
-        else:
+        if n != ".git":
           ds.add(path)
-      elif kind == pcFile:
-        if n == ".git":
-          addRepo(rs, ss, parentDir(path))
   except OSError:
-    echo "Skipping unreadable path: " & r
+    echo "Skipping unreadable path: " & rootDir
   for d in ds:
     scanRoot(rs, ss, d)
 
@@ -429,9 +458,8 @@ proc getRoots*(): seq[string] =
       return @[]
     rs.add(c)
   else:
-    for r in t.split({':', ';'}):
-      if r.strip().len > 0:
-        rs.add(normalizePathValue(r.strip()))
+    for r in splitRootList(t):
+      rs.add(normalizePathValue(r))
   result = rs
 
 proc collectRepos*(rs: seq[string]): seq[string] =
@@ -506,14 +534,22 @@ proc readSubmodules*(p: string): seq[SubmoduleInfo] =
     ms.add(m)
   result = ms
 
-proc findLocalRepo*(rs: seq[string], t, r: string): string =
+proc findLocalRepo*(rs: seq[string], ts: seq[string], r: string): string =
   ## rs: known repo paths.
-  ## t: repo tail to match.
+  ## ts: candidate repo tails to match.
   ## r: current repo path for preference.
   var ps: seq[string] = @[]
   var root: string = parentDir(r)
+  var ns: seq[string] = @[]
+  var name: string
+  var pName: string
+  for t in ts:
+    name = t.strip().toLowerAscii()
+    if name.len > 0 and not ns.contains(name):
+      ns.add(name)
   for p in rs:
-    if lastPathPart(p) == t:
+    pName = lastPathPart(p).toLowerAscii()
+    if ns.contains(pName):
       ps.add(p)
   if ps.len == 0:
     return ""
@@ -526,7 +562,7 @@ proc findLocalRepo*(rs: seq[string], t, r: string): string =
     else:
       opts.add(p)
   opts.add("Skip")
-  let idx = promptOptions("Multiple local repos match " & t & ":", opts)
+  let idx = promptOptions("Multiple local repos match " & ns.join(", ") & ":", opts)
   if idx < 0 or idx == opts.len - 1:
     return ""
   result = ps[idx]
@@ -536,12 +572,32 @@ proc mapLocalSubmodules*(ms: seq[SubmoduleInfo], rs: seq[string], r: string): se
   ## rs: repo list to match local clones.
   ## r: repo path used for preference.
   var tOut: seq[SubmoduleInfo] = @[]
+  var ts: seq[string]
   var t: string
   var l: string
   var n: SubmoduleInfo
+  proc addProtoAliases(name: string) =
+    let low = name.toLowerAscii()
+    if low in ["proto-conventions", "proto-templaterepo", "proto-repotemplate"]:
+      if not ts.contains("Proto-RepoTemplate"):
+        ts.add("Proto-RepoTemplate")
+      if not ts.contains("Proto-TemplateRepo"):
+        ts.add("Proto-TemplateRepo")
   for m in ms:
+    ts = @[]
     t = splitPath(m.path).tail
-    l = findLocalRepo(rs, t, r)
+    if t.len > 0:
+      ts.add(t)
+      addProtoAliases(t)
+    t = extractRepoTail(m.url)
+    if t.len > 0 and not ts.contains(t):
+      ts.add(t)
+      addProtoAliases(t)
+    t = splitPath(m.name).tail
+    if t.len > 0 and not ts.contains(t):
+      ts.add(t)
+      addProtoAliases(t)
+    l = findLocalRepo(rs, ts, r)
     if l.len > 0:
       n = m
       n.url = l.replace('\\', '/')

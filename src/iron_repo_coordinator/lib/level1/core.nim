@@ -18,7 +18,10 @@ import ../../level1/find_local_submodules
 import ../../level1/pushall
 import ../../level1/repo_bootstrap
 import ../../level1/repo_conflicts
+import ../../level1/conventions_sync
 import ../../level1/repo_health
+import ../../level1/submodule_externalize
+import ../../level1/submodule_links
 import ../../level1/submodule_extract
 import ../../level1/submodule_refresh
 import ../../level1/test_picker
@@ -66,16 +69,18 @@ proc buildHelp*(): string =
     "  docs-init Create docs + pipeline scaffold files in .iron/",
     "  docs      Generate autonomous library docs (md + json bridge)",
     "  show      Render .iron/pipeline.json as live ASCII dependency tree",
-    "  find      Build local submodule overrides under roots",
+    "  find      Build local submodule overrides and link sibling repos under roots",
     "  autopull  Pull all repos under discovered roots",
     "  autopush  Commit/push current repo",
     "  expand    Propagate updated submodule across repos",
     "  extract   Clone submodules to sibling repos",
     "  extract-all Extract submodules for all repos under roots",
+    "  externalize Compare nested submodules and externalize them to sibling repos",
     "  pushall   Add/commit/push repos under the selected root",
     "  refresh   Stash/pull submodule repos (main branch)",
     "  branch    Switch between main/nightly or promote nightly",
     "  conflicts Interactive merge conflict overview + resolver",
+    "  sync-conventions Sync .iron/CONVENTIONS.md from Proto-RepoTemplate under roots",
     "  version   Show version",
     "",
     "Flags:",
@@ -150,6 +155,8 @@ proc parseCommand*(cs: seq[string]): ToolingCommand =
     result = tcExtract
   of "extract-all", "extract_all", "extract_submodules_global":
     result = tcExtractAll
+  of "externalize", "externalize-submodules", "relink-submodules":
+    result = tcExternalize
   of "refresh", "submodrefresh":
     result = tcRefresh
   of "pushall", "autopushall":
@@ -158,6 +165,8 @@ proc parseCommand*(cs: seq[string]): ToolingCommand =
     result = tcBranchMode
   of "conflicts", "conflict":
     result = tcConflicts
+  of "sync-conventions", "syncconventions", "conventions-sync":
+    result = tcSyncConventions
   of "version", "-v", "--version":
     result = tcVersion
   else:
@@ -346,6 +355,7 @@ proc runCommand*(c: ToolingCommand, s: ToolingConfig, o: ToolingOptions): string
     eReport: ExpandReport
     xReport: SubmoduleExtractReport
     gxReport: SubmoduleExtractGlobalReport
+    sxReport: SubmoduleExternalizeReport
     fReport: FindLocalSubmodulesReport
     apReport: AutoPullReport
     apsReport: AutoPushReport
@@ -359,6 +369,7 @@ proc runCommand*(c: ToolingCommand, s: ToolingConfig, o: ToolingOptions): string
     initReport: RepoInitReport
     cloneReport: CloneRepoReport
     conflictReport: ConflictSessionReport
+    syncReport: ConventionsSyncReport
     mode: string
     targetRepo: string
     ec: int
@@ -450,6 +461,12 @@ proc runCommand*(c: ToolingCommand, s: ToolingConfig, o: ToolingOptions): string
   of tcExtractAll:
     gxReport = extractSubmodulesGlobal(o.root, o.replace, s.verbose)
     t = renderReportText(gxReport.lines, gxReport.ok, "Extract-all completed.", "Extract-all failed.")
+  of tcExternalize:
+    if isGitRepo(normalizePathValue(o.repo)):
+      sxReport = externalizeSubmodulesInRepo(o.repo, o.root, s.verbose)
+    else:
+      sxReport = externalizeSubmodulesFromRoots(o.root, s.verbose)
+    t = renderReportText(sxReport.lines, sxReport.ok, "Externalize completed.", "Externalize failed.")
   of tcRefresh:
     rReport = refreshSubmodules()
     t = renderReportText(rReport.lines, rReport.ok, "Refresh completed.", "Refresh failed.")
@@ -466,6 +483,9 @@ proc runCommand*(c: ToolingCommand, s: ToolingConfig, o: ToolingOptions): string
   of tcConflicts:
     conflictReport = runConflictsExplorer(o.root)
     t = renderReportText(conflictReport.lines, conflictReport.ok, "Conflicts command completed.", "Conflicts command failed.")
+  of tcSyncConventions:
+    syncReport = syncConventionsFromRoots(o.root)
+    t = renderReportText(syncReport.lines, syncReport.ok, "Convention sync completed.", "Convention sync failed.")
   of tcVersion:
     t = "iron-Tooling v0.4.0"
   result = t

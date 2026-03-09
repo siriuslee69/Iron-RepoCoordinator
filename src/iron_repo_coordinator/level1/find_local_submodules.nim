@@ -6,6 +6,7 @@
 
 import std/[os, strutils, osproc]
 import ../level0/repo_utils
+import submodule_links
 
 
 type
@@ -49,12 +50,11 @@ proc processRepo(r: string, rs: seq[string], d: bool, tReport: var FindLocalSubm
   ## tReport: report object to update.
   var
     gm: string
-    gi: string
     gl: string
     ms: seq[SubmoduleInfo]
     ls: seq[SubmoduleInfo]
+    linkReport: SubmoduleLinkReport
   gm = joinPath(r, ".gitmodules")
-  gi = joinPath(r, ".gitignore")
   gl = joinPath(r, LocalModulesFile)
   if not fileExists(gm):
     return
@@ -70,7 +70,7 @@ proc processRepo(r: string, rs: seq[string], d: bool, tReport: var FindLocalSubm
     addLine(tReport.lines, "  Would write local overrides for " & $ls.len & " submodules.")
     tReport.linked = tReport.linked + ls.len
     return
-  if ensureGitignoreEntry(gi, LocalModulesFile):
+  if ensureLocalIgnoreRules(r):
     addLine(tReport.lines, "  Updated .gitignore")
     tReport.updated = tReport.updated + 1
   writeLocalModules(gl, ls)
@@ -78,8 +78,12 @@ proc processRepo(r: string, rs: seq[string], d: bool, tReport: var FindLocalSubm
     tReport.ok = false
     addLine(tReport.lines, "  Failed to update git config.")
     return
-  addLine(tReport.lines, "  Linked submodules: " & $ls.len)
-  tReport.linked = tReport.linked + ls.len
+  linkReport = linkConfiguredSubmodules(r, ls, true)
+  if not linkReport.ok:
+    tReport.ok = false
+  for line in linkReport.lines:
+    addLine(tReport.lines, "  " & line)
+  tReport.linked = tReport.linked + linkReport.linked
   tReport.updated = tReport.updated + 1
 
 proc findLocalSubmodulesFromRoots*(d: bool): FindLocalSubmodulesReport =

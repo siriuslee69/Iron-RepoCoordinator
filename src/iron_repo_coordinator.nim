@@ -14,11 +14,15 @@ import iron_repo_coordinator/level1/find_local_submodules
 import iron_repo_coordinator/level1/pushall
 import iron_repo_coordinator/level1/repo_bootstrap
 import iron_repo_coordinator/level1/repo_conflicts
+import iron_repo_coordinator/level1/conventions_sync
 import iron_repo_coordinator/level1/repo_health
+import iron_repo_coordinator/level1/submodule_externalize
+import iron_repo_coordinator/level1/submodule_links
 import iron_repo_coordinator/level1/submodule_extract
 import iron_repo_coordinator/level1/submodule_refresh
 import iron_repo_coordinator/level1/test_picker
 
 export core, repo_utils, autopull, autopush, branch_mode, expand
 export find_local_submodules, pushall, repo_health, submodule_extract
-export repo_bootstrap, repo_conflicts, submodule_refresh, test_picker
+export repo_bootstrap, repo_conflicts, conventions_sync, submodule_externalize
+export submodule_links, submodule_refresh, test_picker
