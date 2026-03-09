@@ -26,4 +26,4 @@ bin/
 nimble.develop
 nimble.paths
 valk/.gitmodules.local
-valkyrie_config.md
+valk/valkyrie_config.md
