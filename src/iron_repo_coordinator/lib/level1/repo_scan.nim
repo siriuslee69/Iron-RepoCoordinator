@@ -4,6 +4,15 @@
 import std/[os, sets, strutils]
 import ../level0/types
 
+proc normalizePathKey(p: string): string =
+  ## p: path to normalize for stable comparisons.
+  var t: string
+  t = absolutePath(p)
+  t = t.replace('\\', '/')
+  if t.len > 1 and t.endsWith("/"):
+    t = t[0 .. ^2]
+  result = t
+
 proc parseRoots*(r: string): seq[string] =
   ## r: raw roots value (env or config)
   var
@@ -122,14 +131,18 @@ proc collectReposInRoot*(r: string): seq[RepoInfo] =
     tRepos: seq[RepoInfo]
     tSplit: tuple[head: string, tail: string]
     tInfo: RepoInfo
+    tRootKey: string
+    tHeadKey: string
   if not dirExists(r):
     result = @[]
     return
+  tRootKey = normalizePathKey(r)
   for tKind, tPath in walkDir(r):
     if tKind != pcDir:
       continue
     tSplit = splitPath(tPath)
-    if tSplit.head != r:
+    tHeadKey = normalizePathKey(tSplit.head)
+    if tHeadKey != tRootKey:
       continue
     if not hasGitDir(tPath):
       continue

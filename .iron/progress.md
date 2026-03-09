@@ -1,4 +1,4 @@
-﻿Commit Message: Add autonomous library docs generation and live pipeline viewer commands
+Commit Message: Refactor Iron package layout and stabilize Windows repo push tooling
 
 Features (Total):
 1. CLI command parsing and dispatch
@@ -30,16 +30,19 @@ Features (Implemented):
 14. Added `src/iron_repo_coordinator/lib/level1/pipeline_show.nim` for JSON tree parsing + live ASCII rendering loop
 15. Added `.iron/pipeline.json`, `.iron/pipeline.library.json`, and `.iron/docs_instructionset.md` templates
 16. Added `.iron/illwill_pipeline_example.nim` for terminal animation reference
-17. Extended smoke tests for docs generation and pipeline parsing/rendering
+17. Refactored the library package tree under `src/iron_repo_coordinator/lib/`
+18. Removed the legacy `val` entrypoint and `VALKYRIE_*` env fallbacks
+19. Added `IRON_ASSUME_YES` support for non-interactive push/confirm flows
+20. Fixed Windows root scanning for `iron repos` and related root-based commands
 
 Features (Working On):
-1. Additional validation and regression checks after merge
+1. Follow-up sync for repos still left dirty by submodule pointer updates after the bulk push run
 
 Last Big Change or Problem:
-1. Needed a maintainable docs pipeline usable by both humans and AI agents, plus live progress visualization
+1. The repo still had split package roots, leftover `val` naming, and a Windows path mismatch that broke root-based repo scans
 
 Fix Attempt and Result:
-1. Added dedicated docs/pipeline modules, wired new CLI commands/options, and scaffolded reusable templates; smoke tests updated to guard behavior
+1. Merged the lib modules into `src/iron_repo_coordinator/lib/`, removed the remaining legacy naming, added scripted confirmation support for Iron push flows, and fixed path normalization; tests now pass and `iron repos` resolves `F:/CodingMain` correctly
 
 Features (Planned):
 - Add optional Illwill-backed renderer mode directly inside `iron show` when dependency is installed
