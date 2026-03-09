@@ -81,6 +81,7 @@ proc buildHelp*(): string =
     "  branch    Switch between main/nightly or promote nightly",
     "  conflicts Interactive merge conflict overview + resolver",
     "  sync-conventions Sync .iron/CONVENTIONS.md from Proto-RepoTemplate under roots",
+    "  update-conventions Alias for sync-conventions",
     "  version   Show version",
     "",
     "Flags:",
@@ -165,7 +166,7 @@ proc parseCommand*(cs: seq[string]): ToolingCommand =
     result = tcBranchMode
   of "conflicts", "conflict":
     result = tcConflicts
-  of "sync-conventions", "syncconventions", "conventions-sync":
+  of "sync-conventions", "syncconventions", "conventions-sync", "update-conventions", "updateconventions":
     result = tcSyncConventions
   of "version", "-v", "--version":
     result = tcVersion
