@@ -1,8 +1,8 @@
-# Valkyrie Tooling | smoke tests
+# iron Tooling | smoke tests
 # Basic checks for core command routing and repo scanning.
 
 import std/[os, random, strutils, times, unittest]
-import valkyrie_tooling
+import iron_tooling
 
 proc newTempRoot(p: string): string =
   ## p: test prefix
@@ -45,7 +45,7 @@ proc removeTree(p: string) =
   if dirExists(p):
     removeDir(p)
 
-suite "valkyrie tooling":
+suite "iron tooling":
   test "parseCommand help":
     var
       cs: seq[string]
@@ -62,7 +62,7 @@ suite "valkyrie tooling":
     s = defaultConfig()
     o = defaultOptions()
     t = runCommand(tcVersion, s, o)
-    check t.contains("Valkyrie-Tooling")
+    check t.contains("iron-Tooling")
 
   test "parseCommand expand":
     var
@@ -109,23 +109,23 @@ suite "valkyrie tooling":
     cs = @[
       "show",
       "--repo=F:/CodingMain/RepoA",
-      "--pipeline=valk/pipeline.json",
+      "--pipeline=.iron/pipeline.json",
       "--interval-ms=333",
       "--loops=4",
       "--once",
       "--overwrite",
       "--src=src",
-      "--docs-out=valk/docs/library_api.md"
+      "--docs-out=.iron/docs/library_api.md"
     ]
     o = parseOptions(cs)
     check o.repo == "F:/CodingMain/RepoA"
-    check o.pipelinePath == "valk/pipeline.json"
+    check o.pipelinePath == ".iron/pipeline.json"
     check o.intervalMs == 333
     check o.loops == 4
     check o.once
     check o.overwrite
     check o.srcPath == "src"
-    check o.docsOut == "valk/docs/library_api.md"
+    check o.docsOut == ".iron/docs/library_api.md"
 
   test "parseRoots windows drive":
     var
@@ -143,10 +143,10 @@ suite "valkyrie tooling":
       tHasA: bool
       tHasB: bool
       tHasSub: bool
-      tHasValk: bool
+      tHasIron: bool
       tRepo: RepoInfo
       i: int
-    tRoot = newTempRoot("valkyrie_scan")
+    tRoot = newTempRoot("iron_scan")
     try:
       tRepoA = joinPath(tRoot, "RepoA")
       tRepoB = joinPath(tRoot, "RepoB")
@@ -155,14 +155,14 @@ suite "valkyrie tooling":
       createDir(joinPath(tRepoA, ".git"))
       writeFile(joinPath(tRepoB, ".git"), "gitdir: ../.git/modules/RepoB")
       writeFile(joinPath(tRepoB, ".gitmodules"), "[submodule \"x\"]")
-      createDir(joinPath(tRepoA, "valkyrie"))
+      createDir(joinPath(tRepoA, ".iron"))
       tRepos = discoverRepos(@[tRoot])
       i = 0
       while i < tRepos.len:
         tRepo = tRepos[i]
         if tRepo.name == "RepoA":
           tHasA = true
-          tHasValk = tRepo.hasValkyrie
+          tHasIron = tRepo.hasiron
         if tRepo.name == "RepoB":
           tHasB = true
           tHasSub = tRepo.hasSubmodules
@@ -170,7 +170,7 @@ suite "valkyrie tooling":
       check tHasA
       check tHasB
       check tHasSub
-      check tHasValk
+      check tHasIron
     finally:
       removeTree(tRoot)
 
@@ -183,9 +183,9 @@ suite "valkyrie tooling":
       docsReport: LibraryDocsReport
       mdText: string
       jsonText: string
-    tRoot = newTempRoot("valkyrie_docs")
+    tRoot = newTempRoot("iron_docs")
     try:
-      createDir(joinPath(tRoot, "valk"))
+      createDir(joinPath(tRoot, ".iron"))
       tSrc = joinPath(tRoot, "src")
       createDir(tSrc)
       tModule = joinPath(tSrc, "sample_lib.nim")
@@ -202,8 +202,8 @@ proc helper(x: int): int =
 """)
       initReport = initDocsScaffold(tRoot, false)
       check initReport.ok
-      check fileExists(joinPath(tRoot, "valk", "pipeline.json"))
-      check fileExists(joinPath(tRoot, "valk", "docs_instructionset.md"))
+      check fileExists(joinPath(tRoot, ".iron", "pipeline.json"))
+      check fileExists(joinPath(tRoot, ".iron", "docs_instructionset.md"))
       docsReport = generateLibraryDocs(tRoot, "", "")
       check docsReport.ok
       check fileExists(docsReport.markdownPath)
@@ -219,16 +219,16 @@ proc helper(x: int): int =
   test "pipeline parse and render":
     var
       tRoot: string
-      tValk: string
+      tIronDir: string
       tPipeline: string
       parseResult: PipelineParseResult
       frameText: string
       resolved: string
-    tRoot = newTempRoot("valkyrie_pipeline")
+    tRoot = newTempRoot("iron_pipeline")
     try:
-      tValk = joinPath(tRoot, "valk")
-      createDir(tValk)
-      tPipeline = joinPath(tValk, "pipeline.json")
+      tIronDir = joinPath(tRoot, ".iron")
+      createDir(tIronDir)
+      tPipeline = joinPath(tIronDir, "pipeline.json")
       writeFile(tPipeline, """
 {
   "name": "Test Pipeline",

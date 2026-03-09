@@ -1,4 +1,4 @@
-﻿nimcache/
+nimcache/
 build/
 builds/
 dist/
@@ -25,5 +25,6 @@ bin/
 .idea/
 nimble.develop
 nimble.paths
-valk/.gitmodules.local
-valk/valkyrie_config.md
+.iron/.local*
+!.iron/.local*.template
+

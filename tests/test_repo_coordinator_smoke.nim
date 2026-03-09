@@ -1,21 +1,21 @@
 # ==================================================
-# | Valkyrie Tooling Repo Coordinator Smoke Tests  |
+# | iron Tooling Repo Coordinator Smoke Tests  |
 # |------------------------------------------------|
 # | Quick sanity checks for integrated coordinator |
 # | logic.                                         |
 # ==================================================
 
 import std/unittest
-import valkyrie_repo_coordinator/backend/core
-import valkyrie_repo_coordinator/level0/repo_utils
-import valkyrie_repo_coordinator/level1/repo_health
-import valkyrie_repo_coordinator/level1/test_picker
+import iron_repo_coordinator/backend/core
+import iron_repo_coordinator/level0/repo_utils
+import iron_repo_coordinator/level1/repo_health
+import iron_repo_coordinator/level1/test_picker
 
 
 suite "embedded repo coordinator":
   test "init":
-    var c: RepoCoordinatorContext = initRepoCoordinator("Valkyrie", "/tmp")
-    check c.name == "Valkyrie"
+    var c: RepoCoordinatorContext = initRepoCoordinator("iron", "/tmp")
+    check c.name == "iron"
     check c.root == "/tmp"
     check c.status == "ready"
 

@@ -1,0 +1,35 @@
+﻿{
+  "name": "iron Library Maintenance Pipeline",
+  "description": "Live status graph for development, tests, and docs generation.",
+  "intervalMs": 700,
+  "root": {
+    "id": "plan",
+    "label": "Plan and scope feature change",
+    "status": "done",
+    "details": "Identify touched commands, options, tests, and docs.",
+    "children": [
+      {
+        "id": "implement",
+        "label": "Implement source changes",
+        "status": "active",
+        "details": "Wire commands and keep modules maintainable.",
+        "children": [
+          {
+            "id": "tests",
+            "label": "Run smoke tests",
+            "status": "todo",
+            "details": "Run nimble test and resolve regressions.",
+            "children": []
+          },
+          {
+            "id": "docs",
+            "label": "Generate docs bridge",
+            "status": "todo",
+            "details": "Run iron docs and verify markdown/json output.",
+            "children": []
+          }
+        ]
+      }
+    ]
+  }
+}

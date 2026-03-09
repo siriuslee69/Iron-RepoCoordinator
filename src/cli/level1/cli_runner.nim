@@ -1,10 +1,10 @@
-# Valkyrie Tooling | CLI runner
+# iron Tooling | CLI runner
 # Wires CLI arguments to core command logic.
 
 import std/os
-import ../../lib/level0/config
-import ../../lib/level0/types
-import ../../lib/level1/core
+import ../../iron_repo_coordinator/lib/level0/config
+import ../../iron_repo_coordinator/lib/level0/types
+import ../../iron_repo_coordinator/lib/level1/core
 
 proc hasVerboseFlag(cs: seq[string]): bool =
   ## cs: command-line arguments
