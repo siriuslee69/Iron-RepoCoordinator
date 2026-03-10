@@ -10,6 +10,6 @@
 [submodule "submodules/Sigma-BenchAndEval"]
 	path = submodules/Sigma-BenchAndEval
 	url = https://github.com/siriuslee69/Sigma-BenchAndEval
-[submodule "submodules/proto-conventions"]
-	path = submodules/proto-conventions
+[submodule "submodules/Proto-RepoTemplate"]
+	path = submodules/Proto-RepoTemplate
 	url = https://github.com/siriuslee69/Proto-RepoTemplate.git
