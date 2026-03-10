@@ -180,8 +180,10 @@ proc showConflictFile(repo: ConflictRepoState, filePath: string) =
   cols = chooseColors(repo)
   echo ""
   echo "Conflict file: " & filePath
-  echo cols.ours & "OURS   (" & repo.branch & " @ " & formatEpoch(repo.headEpoch) & ")" & ColorReset
-  echo cols.theirs & "THEIRS (" & repo.mergeBranch & " @ " & formatEpoch(repo.mergeEpoch) & ")" & ColorReset
+  echo cols.ours & "OURS   (" & repo.branch & " @ " & formatEpoch(
+      repo.headEpoch) & ")" & ColorReset
+  echo cols.theirs & "THEIRS (" & repo.mergeBranch & " @ " & formatEpoch(
+      repo.mergeEpoch) & ")" & ColorReset
   echo ""
   lines = buildDiffLines(ours.text, theirs.text, 200)
   if lines.len == 0:
@@ -204,13 +206,15 @@ proc resolveFile(repoPath: string, filePath: string, mode: string): bool =
   var
     c1: string
     c2: string
-  c1 = "git -C " & quoteShell(repoPath) & " checkout --" & mode & " -- " & quoteShell(filePath)
+  c1 = "git -C " & quoteShell(repoPath) & " checkout --" & mode & " -- " &
+      quoteShell(filePath)
   c2 = "git -C " & quoteShell(repoPath) & " add -- " & quoteShell(filePath)
   if execCmd(c1) != 0:
     return false
   result = execCmd(c2) == 0
 
-proc interactRepoConflicts(state: var ConflictRepoState, report: var ConflictSessionReport) =
+proc interactRepoConflicts(state: var ConflictRepoState,
+    report: var ConflictSessionReport) =
   ## state: selected conflict repo state.
   ## report: output report.
   var
@@ -251,13 +255,15 @@ proc interactRepoConflicts(state: var ConflictRepoState, report: var ConflictSes
         addLine(report.lines, "Resolved with ours: " & state.name & " :: " & f)
       else:
         report.ok = false
-        addLine(report.lines, "Failed resolving with ours: " & state.name & " :: " & f)
+        addLine(report.lines, "Failed resolving with ours: " & state.name &
+            " :: " & f)
     elif action == 1:
       if resolveFile(state.path, f, "theirs"):
         addLine(report.lines, "Resolved with theirs: " & state.name & " :: " & f)
       else:
         report.ok = false
-        addLine(report.lines, "Failed resolving with theirs: " & state.name & " :: " & f)
+        addLine(report.lines, "Failed resolving with theirs: " & state.name &
+            " :: " & f)
 
 proc runConflictsExplorer*(rootOverride: string): ConflictSessionReport =
   ## rootOverride: optional root directory override.
@@ -291,7 +297,8 @@ proc runConflictsExplorer*(rootOverride: string): ConflictSessionReport =
       options.add(st.name & " (" & $st.files.len & " files)")
     options.add("Rescan")
     options.add("Exit")
-    idx = promptOptionsDefault("Conflict overview (" & $states.len & " repos):", options, 0)
+    idx = promptOptionsDefault("Conflict overview (" & $states.len & " repos):",
+        options, 0)
     if idx < 0 or idx == options.len - 1:
       return report
     if idx == options.len - 2:
