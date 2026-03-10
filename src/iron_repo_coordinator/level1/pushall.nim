@@ -33,7 +33,7 @@ proc runCmd(c: string): tuple[text: string, code: int] =
 proc runGit(r, a: string): tuple[text: string, code: int] =
   ## r: repo path.
   ## a: git arguments to execute.
-  var c: string = "git -C " & quoteShell(r) & " " & a
+  var c: string = "git -c submodule.recurse=false -C " & quoteShell(r) & " " & a
   result = runCmd(c)
 
 proc isGitRepo(r: string): bool =
@@ -53,12 +53,12 @@ proc hasRemote(r: string): bool =
 
 proc hasChanges(r: string): bool =
   ## r: repo path to check for local changes.
-  var t: tuple[text: string, code: int] = runGit(r, "status --porcelain")
+  var t: tuple[text: string, code: int] = runGit(r, "status --porcelain --ignore-submodules=dirty")
   result = t.code == 0 and t.text.strip().len > 0
 
 proc getChangedFiles(r: string): seq[string] =
   ## r: repo path to list changed files.
-  var t: tuple[text: string, code: int] = runGit(r, "status --porcelain")
+  var t: tuple[text: string, code: int] = runGit(r, "status --porcelain --ignore-submodules=dirty")
   var lines: seq[string]
   var p: string
   if t.code != 0 or t.text.strip().len == 0:
@@ -74,8 +74,8 @@ proc getChangedFiles(r: string): seq[string] =
 proc runAddCommit(r, m: string): int =
   ## r: repo path to commit.
   ## m: commit message.
-  var c1: string = "git -C " & quoteShell(r) & " add -A ."
-  var c2: string = "git -C " & quoteShell(r) & " commit -m " & quoteShell(m)
+  var c1: string = "git -c submodule.recurse=false -C " & quoteShell(r) & " add -A ."
+  var c2: string = "git -c submodule.recurse=false -C " & quoteShell(r) & " commit -m " & quoteShell(m)
   var ec: int = execCmd(c1)
   if ec != 0:
     return ec
@@ -83,12 +83,14 @@ proc runAddCommit(r, m: string): int =
 
 proc runPush(r: string): int =
   ## r: repo path to push.
-  var c: string = "git -C " & quoteShell(r) & " push"
+  var c: string = "git -c submodule.recurse=false -C " & quoteShell(r) &
+                  " push --recurse-submodules=no"
   result = execCmd(c)
 
 proc runFetch(r: string): int =
   ## r: repo path to fetch.
-  var c: string = "git -C " & quoteShell(r) & " fetch"
+  var c: string = "git -c submodule.recurse=false -C " & quoteShell(r) &
+                  " fetch --no-recurse-submodules"
   result = execCmd(c)
 
 proc confirmFetchPush(): bool =
