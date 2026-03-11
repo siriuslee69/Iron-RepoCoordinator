@@ -3,8 +3,9 @@
 
 import std/[os, random, strutils, times, unittest]
 import iron_tooling
+include ../src/lib/level0/metaPragmas
 
-proc newTempRoot(p: string): string =
+proc newTempRoot(p: string): string {.role(helper).} =
   ## p: test prefix
   var
     tBase: string
@@ -19,7 +20,7 @@ proc newTempRoot(p: string): string =
   createDir(tPath)
   result = tPath
 
-proc removeTree(p: string) =
+proc removeTree(p: string) {.role(actor).} =
   ## p: root path to remove
   var
     tEntries: seq[(PathComponent, string)]
@@ -83,6 +84,23 @@ suite "iron tooling":
     check c == tcShow
     c = parseCommand(@["--", "show"])
     check c == tcShow
+    c = parseCommand(@["config"])
+    check c == tcConfig
+
+  test "command truth suggests likely command":
+    var
+      t: ToolingCommandTruth
+      i: int
+      hasPushAll: bool
+    t = buildCommandTruthState(@["pushal"])
+    check not t.recognized
+    check t.suggestions.len > 0
+    i = 0
+    while i < t.suggestions.len:
+      if t.suggestions[i].command == tcPushAll:
+        hasPushAll = true
+      inc i
+    check hasPushAll
 
   test "parseOptions for extract":
     var
@@ -126,6 +144,25 @@ suite "iron tooling":
     check o.overwrite
     check o.srcPath == "src"
     check o.docsOut == ".iron/docs/library_api.md"
+
+  test "parseOptions config flags":
+    var
+      cs: seq[string]
+      o: ToolingOptions
+    cs = @[
+      "config",
+      "--owners=siriuslee69,alpha",
+      "--add-owner",
+      "beta",
+      "--remove-owner=gamma",
+      "--foreign-mode",
+      "skip"
+    ]
+    o = parseOptions(cs)
+    check o.configOwners == "siriuslee69,alpha"
+    check o.configAddOwner == "beta"
+    check o.configRemoveOwner == "gamma"
+    check o.configForeignMode == "skip"
 
   test "parseRoots windows drive":
     var

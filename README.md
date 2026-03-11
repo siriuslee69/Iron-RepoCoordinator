@@ -8,10 +8,11 @@ iron is a CLI-first multi-repo tooling project in Nim. Repo-coordinator function
 - Keep optional ecosystem integrations (Eitri, Yggdrasil, Tyr, Sigma) modular.
 
 ## Structure
-- `src/cli/level1/` CLI runner and entrypoints (`iron`, `iron_cli`)
-- `src/iron_repo_coordinator/lib/level0/` base types and config
-- `src/iron_repo_coordinator/lib/level1/` command parsing, dispatch, root scanning
-- `src/iron_repo_coordinator/level0|level1|backend/` embedded repo-coordination modules
+- `src/lib/level0/` base types, config, and repo utilities
+- `src/lib/level1/` command catalog/perception/truth/actor flow plus repo-coordination modules
+- `src/interfaces/backend/` backend-facing coordinator surface
+- `src/interfaces/frontend/cli/` CLI entrypoint and runner
+- `src/*.nim` thin root modules and package exports
 - `tests/` smoke tests for iron + embedded coordinator behavior
 - `submodules/` optional external tooling dependencies
   - uses `Proto-RepoTemplate` as the shared conventions source
@@ -37,6 +38,7 @@ Common commands:
 - `iron extract-all --root <path>`
 - `iron branch --mode main|nightly|promote`
 - `iron pushall`
+- `iron config`
 - `iron clone <url>`
 - `iron init --repo <path>`
 - `iron conflicts --root <path>`
@@ -113,23 +115,40 @@ Status values:
   - Env flag: `IRON_VERBOSE=1`
 - Scripted confirmations:
   - Env flag: `IRON_ASSUME_YES=1`
-- Ownership safety is configured via `.iron/repo_coordinator.toml`:
+- iron now persists its main config next to the active binary as `iron.config.toml`.
+- Edit it with `iron config` or flags such as:
+  - `iron config --owners siriuslee69`
+  - `iron config --add-owner siriuslee69`
+  - `iron config --remove-owner siriuslee69`
+  - `iron config --foreign-mode skip`
+- Optional repo-local overrides are still read from `.iron/repo_coordinator.toml`:
 
 ```toml
 owners = "siriuslee69"
 foreign_mode = "update" # update or skip
 ```
 
-Write actions require `owners` to be configured.
+Write actions use configured owners from the global iron config first, then repo-local overrides, then env overrides.
 
 ## Safety Policy
 - Write operations prompt for explicit ENTER confirmation.
-- Interactive options use numbered choices and `x` to abort.
+- Interactive options use numbered choice menus and require ENTER once more to confirm the selected item.
+- Unknown commands show a suggestion menu instead of dumping the full help text.
 - Non-interactive sessions abort for write operations.
+
+## Command Flow
+- The CLI now follows the workspace convention split:
+  - perceive: raw args are parsed into command/input state
+  - truth: command truth state resolves aliases and suggestions
+  - act: interactive menus resolve the final command before dispatch
+- `pushall` now follows the same pattern:
+  - perceive repo/git/owner state
+  - build a push truth state
+  - act by selecting/configuring the owner and running the push passes
 
 ## Issue Playbook
 - Problem: write actions are blocked with `No owners configured`.
-  - Workaround: set `owners` in `.iron/repo_coordinator.toml`.
+  - Workaround: run `iron config` or let `iron pushall` save a detected owner into `iron.config.toml`.
 - Problem: `find` or `expand` does not link a submodule.
   - Workaround: ensure matching local clone name/path and check `.gitmodules` entries.
 - Problem: branch switching fails on dirty repo state.

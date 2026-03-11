@@ -6,10 +6,10 @@
 # ==================================================
 
 import std/unittest
-import iron_repo_coordinator/backend/core
-import iron_repo_coordinator/level0/repo_utils
-import iron_repo_coordinator/level1/repo_health
-import iron_repo_coordinator/level1/test_picker
+import interfaces/backend/core
+import lib/level0/repo_utils
+import lib/level1/repo_health
+import lib/level1/test_picker
 
 
 suite "embedded repo coordinator":
