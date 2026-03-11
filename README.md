@@ -120,11 +120,15 @@ Status values:
   - `iron config --owners siriuslee69`
   - `iron config --add-owner siriuslee69`
   - `iron config --remove-owner siriuslee69`
+  - `iron config --exclude-repos RepoA,RepoB`
+  - `iron config --add-exclude RepoC`
+  - `iron config --remove-exclude RepoC`
   - `iron config --foreign-mode skip`
 - Optional repo-local overrides are still read from `.iron/repo_coordinator.toml`:
 
 ```toml
 owners = "siriuslee69"
+excluded_repos = "RepoA,RepoB"
 foreign_mode = "update" # update or skip
 ```
 
@@ -144,7 +148,7 @@ Write actions use configured owners from the global iron config first, then repo
 - `pushall` now follows the same pattern:
   - perceive repo/git/owner state
   - build a push truth state
-  - act by selecting/configuring the owner and running the push passes
+  - act by selecting/configuring the owner and running one push pass over the eligible repos
 
 ## Issue Playbook
 - Problem: write actions are blocked with `No owners configured`.

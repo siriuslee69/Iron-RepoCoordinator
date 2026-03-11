@@ -30,6 +30,9 @@ proc defaultOptions*(): ToolingOptions {.role(helper).} =
   t.configOwners = ""
   t.configAddOwner = ""
   t.configRemoveOwner = ""
+  t.configExcludedRepos = ""
+  t.configAddExcludedRepo = ""
+  t.configRemoveExcludedRepo = ""
   t.configForeignMode = ""
   result = t
 
@@ -203,6 +206,62 @@ proc parseOptions*(A: seq[string]): ToolingOptions {.role(parser).} =
         continue
     if t.startsWith("--remove-owner="):
       O.configRemoveOwner = t["--remove-owner=".len .. ^1]
+      inc i
+      continue
+    if t == "--exclude-repos" or t == "--excluded-repos":
+      v = readFlagValue(A, i)
+      if v.len > 0:
+        O.configExcludedRepos = v
+        i = i + 2
+        continue
+    if t.startsWith("--exclude-repos="):
+      O.configExcludedRepos = t["--exclude-repos=".len .. ^1]
+      inc i
+      continue
+    if t.startsWith("--excluded-repos="):
+      O.configExcludedRepos = t["--excluded-repos=".len .. ^1]
+      inc i
+      continue
+    if t == "--exclude-repo" or t == "--excluded-repo":
+      v = readFlagValue(A, i)
+      if v.len > 0:
+        O.configExcludedRepos = v
+        i = i + 2
+        continue
+    if t.startsWith("--exclude-repo="):
+      O.configExcludedRepos = t["--exclude-repo=".len .. ^1]
+      inc i
+      continue
+    if t.startsWith("--excluded-repo="):
+      O.configExcludedRepos = t["--excluded-repo=".len .. ^1]
+      inc i
+      continue
+    if t == "--add-exclude" or t == "--add-excluded-repo":
+      v = readFlagValue(A, i)
+      if v.len > 0:
+        O.configAddExcludedRepo = v
+        i = i + 2
+        continue
+    if t.startsWith("--add-exclude="):
+      O.configAddExcludedRepo = t["--add-exclude=".len .. ^1]
+      inc i
+      continue
+    if t.startsWith("--add-excluded-repo="):
+      O.configAddExcludedRepo = t["--add-excluded-repo=".len .. ^1]
+      inc i
+      continue
+    if t == "--remove-exclude" or t == "--remove-excluded-repo":
+      v = readFlagValue(A, i)
+      if v.len > 0:
+        O.configRemoveExcludedRepo = v
+        i = i + 2
+        continue
+    if t.startsWith("--remove-exclude="):
+      O.configRemoveExcludedRepo = t["--remove-exclude=".len .. ^1]
+      inc i
+      continue
+    if t.startsWith("--remove-excluded-repo="):
+      O.configRemoveExcludedRepo = t["--remove-excluded-repo=".len .. ^1]
       inc i
       continue
     if t == "--foreign-mode":

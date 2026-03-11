@@ -6,6 +6,7 @@
 
 import std/[algorithm, os, osproc, strutils, terminal]
 import ../level0/repo_utils
+import commit_message_builder
 include ../level0/metaPragmas
 
 
@@ -36,15 +37,121 @@ type
     repoTruths: seq[PushAllRepoTruth]
     detectedOwners: seq[tuple[owner: string, count: int]]
 
-
 const
-  MaxPushPasses = 4
+  ColorRepo = "\e[36m"
+  ColorCommit = "\e[33m"
+  ColorReset = "\e[0m"
 
 
 proc addLine(L: var seq[string], t: string) {.role(helper).} =
   ## L: line buffer.
   ## t: line to append.
   L.add(t)
+
+proc supportsColor(): bool {.role(parser).} =
+  ## returns whether stdout can render ANSI colors.
+  result = isatty(stdout)
+
+proc colorizeText(t: string, c: string): string {.role(helper).} =
+  ## t: text to colorize.
+  ## c: ANSI color prefix.
+  if t.len == 0 or not supportsColor():
+    return t
+  result = c & t & ColorReset
+
+proc readRepoName(r: string): string {.role(parser).} =
+  ## r: repo path to summarize.
+  result = lastPathPart(r)
+  if result.len == 0:
+    result = r
+
+proc formatRepoLabel(r: string): string {.role(helper).} =
+  ## r: repo path to render in pushall output.
+  var
+    name: string
+  name = readRepoName(r)
+  if name == r:
+    return colorizeText(name, ColorRepo)
+  result = colorizeText(name, ColorRepo) & " (" & r & ")"
+
+proc formatCommitLabel(msg: string): string {.role(helper).} =
+  ## msg: commit message to render in pushall output.
+  if msg.len == 0:
+    return "No changes"
+  result = colorizeText(msg, ColorCommit)
+
+proc formatRepoOutcome(repo: string, detail: string): string {.role(helper).} =
+  ## repo: repo path for the outcome.
+  ## detail: status or message to append.
+  result = formatRepoLabel(repo) & " | " & detail
+
+proc ownerRootRepoExcluded*(repoPath: string, owner: string): bool {.role(parser).} =
+  ## repoPath: repo path to test against the selected owner name.
+  ## owner: selected owner/user string.
+  var
+    repoName: string
+    ownerName: string
+  repoName = readRepoName(repoPath).strip().toLowerAscii()
+  ownerName = owner.strip().toLowerAscii()
+  if repoName.len == 0 or ownerName.len == 0:
+    return false
+  result = repoName == ownerName
+
+proc readPushAllPromptInput*(t: string): tuple[confirmed: bool, confirmAll: bool] {.role(parser).} =
+  ## t: raw interactive pushall confirmation input.
+  var
+    v: string
+  v = t.strip().toLowerAscii()
+  if v.len == 0:
+    return (true, false)
+  if v == "all":
+    return (true, true)
+  result = (false, false)
+
+proc confirmPushAllAction(msg: string, autoConfirmAll: var bool): bool {.role(actor).} =
+  ## msg: prompt text.
+  ## autoConfirmAll: sticky pushall confirmation state for remaining repos.
+  var
+    input: string
+    decision: tuple[confirmed: bool, confirmAll: bool]
+  if isTruthyEnv("IRON_ASSUME_YES"):
+    echo msg & " [auto-confirmed by IRON_ASSUME_YES]"
+    return true
+  if autoConfirmAll:
+    echo msg & " [auto-confirmed by all]"
+    return true
+  if not isatty(stdin):
+    echo msg & " (non-interactive; aborting)"
+    return false
+  stdout.write(msg &
+      " Press ENTER to continue, type 'all' to continue remaining commits/pushes, anything else aborts: ")
+  stdout.flushFile()
+  try:
+    input = stdin.readLine()
+  except EOFError:
+    echo ""
+    return false
+  except IOError:
+    echo ""
+    return false
+  decision = readPushAllPromptInput(input)
+  if decision.confirmAll:
+    autoConfirmAll = true
+  result = decision.confirmed
+
+proc noteAutoConfirmEnabled(L: var seq[string], previous: bool, current: bool) {.role(actor).} =
+  ## L: report line buffer.
+  ## previous: prior sticky confirmation state.
+  ## current: current sticky confirmation state.
+  if not previous and current:
+    addLine(L, "Auto-confirming remaining commit and push prompts for this run.")
+
+proc emitCommitTruth(L: var seq[string], t: CommitMessageTruthState) {.role(actor).} =
+  ## L: report line buffer.
+  ## t: commit message truth state to show before prompting.
+  for line in renderCommitTruthLines(t):
+    echo "  " & line
+    addLine(L, "  " & line)
 
 proc runCmd(c: string): tuple[text: string, code: int] {.role(actor).} =
   ## c: command to execute.
@@ -305,16 +412,18 @@ proc buildPushAllTruthState(): PushAllTruthState {.role(truthBuilder).} =
   while i < result.repos.len:
     truth = readRepoTruth(result.repos[i])
     result.repoTruths.add(truth)
-    if truth.isGit and not truth.isSubmodule and truth.hasRemote:
+    if truth.isGit and not truth.isSubmodule and truth.hasRemote and
+        not repoExcluded(result.config, truth.path) and
+        not ownerRootRepoExcluded(truth.path, truth.owner):
       addOwnerCount(result.detectedOwners, truth.owner)
     inc i
   result.detectedOwners.sort(proc(a, b: tuple[owner: string, count: int]): int =
     result = system.cmp(b.count, a.count)
   )
 
-proc confirmFetchPush(): bool {.role(actor).} =
+proc confirmFetchPush(autoConfirmAll: var bool): bool {.role(actor).} =
   ## Ask user to confirm fetch+push.
-  result = confirmEnter("Fetch and push repos under the selected root?")
+  result = confirmPushAllAction("Fetch and push repos under the selected root?", autoConfirmAll)
 
 proc promptManualOwner(): string {.role(actor).} =
   ## asks the user for an owner string.
@@ -441,23 +550,31 @@ proc buildOwnerRepos(S: PushAllTruthState, owner: string, R: var PushAllReport,
   while i < S.repoTruths.len:
     truth = S.repoTruths[i]
     if not truth.isGit:
-      skips.add(truth.path & " | Not a git repo")
+      skips.add(formatRepoOutcome(truth.path, "Not a git repo"))
       inc i
       continue
     if truth.isSubmodule:
-      skips.add(truth.path & " | Submodule repo")
+      skips.add(formatRepoOutcome(truth.path, "Submodule repo"))
       inc i
       continue
     if not truth.hasRemote:
-      skips.add(truth.path & " | No remotes")
+      skips.add(formatRepoOutcome(truth.path, "No remotes"))
+      inc i
+      continue
+    if repoExcluded(S.config, truth.path):
+      skips.add(formatRepoOutcome(truth.path, "Excluded by config"))
+      inc i
+      continue
+    if ownerRootRepoExcluded(truth.path, owner):
+      skips.add(formatRepoOutcome(truth.path, "Owner root repo excluded by default"))
       inc i
       continue
     if truth.owner != owner:
-      skips.add(truth.path & " | Owner mismatch (" & truth.owner & ")")
+      skips.add(formatRepoOutcome(truth.path, "Owner mismatch (" & truth.owner & ")"))
       inc i
       continue
     if truth.remoteUrl.len == 0:
-      skips.add(truth.path & " | Missing origin URL")
+      skips.add(formatRepoOutcome(truth.path, "Missing origin URL"))
       inc i
       continue
     idx = remoteUrls.find(truth.remoteUrl)
@@ -474,10 +591,10 @@ proc buildOwnerRepos(S: PushAllTruthState, owner: string, R: var PushAllReport,
       result.add(preferred)
       if remoteRepos[i].len > 1:
         addLine(R.lines, "Duplicate remote detected for " & remoteUrls[i] &
-              "; using " & preferred)
+              "; using " & formatRepoLabel(preferred))
         for repo in remoteRepos[i]:
           if normalizePathValue(repo) != preferred:
-            skips.add(repo & " | Duplicate remote, preferred " & preferred)
+            skips.add(formatRepoOutcome(repo, "Duplicate remote, preferred " & readRepoName(preferred)))
     inc i
 
 proc readPassRepos(A: seq[string]): seq[string] {.role(parser).} =
@@ -491,15 +608,18 @@ proc readPassRepos(A: seq[string]): seq[string] {.role(parser).} =
     inc i
 
 proc runRepoPush(repo: string, R: var PushAllReport, success: var seq[string],
-                 fails: var seq[string]) {.role(actor).} =
+                 fails: var seq[string], autoConfirmAll: var bool) {.role(actor).} =
   ## repo: repo path to process.
   ## R: report accumulator.
   ## success: success summary lines.
   ## fails: failure summary lines.
+  ## autoConfirmAll: sticky pushall confirmation state for remaining repos.
   var
     files: seq[string]
     msg: string
-  addLine(R.lines, "==> " & repo)
+    msgTruth: CommitMessageTruthState
+    previousAutoConfirmAll: bool
+  addLine(R.lines, "==> " & formatRepoLabel(repo))
   files = getChangedFiles(repo)
   if files.len > 0:
     addLine(R.lines, "  Changed files: " & files.join(", "))
@@ -507,76 +627,80 @@ proc runRepoPush(repo: string, R: var PushAllReport, success: var seq[string],
     if not removeIndexLock(repo):
       addLine(R.lines, "  Could not remove stale index.lock.")
       R.ok = false
-      fails.add(repo & " | Stale index.lock")
+      fails.add(formatRepoOutcome(repo, "Stale index.lock"))
       return
-    msg = readCommitMessage(repo)
-    if not confirmEnter("Commit changes in " & repo & "?"):
+    msgTruth = buildCommitMessageTruthState(repo)
+    emitCommitTruth(R.lines, msgTruth)
+    msg = buildAutomaticCommitMessage(msgTruth)
+    addLine(R.lines, "  Commit summary: " &
+        formatCommitLabel(readCommitMessageHeadline(msg)))
+    previousAutoConfirmAll = autoConfirmAll
+    if not confirmPushAllAction(
+        "Commit changes in " & formatRepoLabel(repo) & "? Summary: " &
+        formatCommitLabel(readCommitMessageHeadline(msg)),
+        autoConfirmAll):
       addLine(R.lines, "  Commit cancelled by user.")
-      fails.add(repo & " | Commit cancelled")
+      fails.add(formatRepoOutcome(repo, "Commit cancelled"))
       return
+    noteAutoConfirmEnabled(R.lines, previousAutoConfirmAll, autoConfirmAll)
     if runAddCommit(repo, msg) != 0:
       addLine(R.lines, "  Commit failed.")
       R.ok = false
-      fails.add(repo & " | Commit failed")
+      fails.add(formatRepoOutcome(repo, "Commit failed"))
       return
     R.committed = R.committed + 1
   if runFetch(repo) != 0:
     addLine(R.lines, "  Fetch failed.")
     R.ok = false
-    fails.add(repo & " | Fetch failed")
+    fails.add(formatRepoOutcome(repo, "Fetch failed"))
     return
-  if not confirmEnter("Push " & repo & " to origin?"):
+  previousAutoConfirmAll = autoConfirmAll
+  if not confirmPushAllAction("Push " & formatRepoLabel(repo) & " to origin?", autoConfirmAll):
     addLine(R.lines, "  Push cancelled by user.")
-    fails.add(repo & " | Push cancelled")
+    fails.add(formatRepoOutcome(repo, "Push cancelled"))
     return
+  noteAutoConfirmEnabled(R.lines, previousAutoConfirmAll, autoConfirmAll)
   if runPush(repo) != 0:
     addLine(R.lines, "  Push failed.")
     R.ok = false
-    fails.add(repo & " | Push failed")
+    fails.add(formatRepoOutcome(repo, "Push failed"))
     return
   R.pushed = R.pushed + 1
-  if msg.len == 0:
-    msg = "No changes"
-  success.add(repo & " | " & msg)
+  success.add(formatRepoOutcome(repo,
+      formatCommitLabel(readCommitMessageHeadline(msg))))
 
-proc runPushPasses(A: seq[string], R: var PushAllReport) {.role(orchestrator).} =
+proc runPushPasses(A: seq[string], R: var PushAllReport,
+                   autoConfirmAll: var bool) {.role(orchestrator).} =
   ## A: owner-filtered repo list.
   ## R: report accumulator.
+  ## autoConfirmAll: sticky pushall confirmation state for remaining repos.
   var
-    pass: int
     passRepos: seq[string]
     success: seq[string]
     fails: seq[string]
     remaining: int
-    previousRemaining: int
     i: int
-  pass = 1
-  previousRemaining = high(int)
-  while pass <= MaxPushPasses:
-    passRepos = readPassRepos(A)
-    if passRepos.len == 0:
-      break
-    addLine(R.lines, "Pass " & $pass & ": processing " & $passRepos.len &
+  passRepos = readPassRepos(A)
+  if passRepos.len == 0:
+    addLine(R.lines, "No repos have local changes or ahead commits.")
+  else:
+    addLine(R.lines, "Processing " & $passRepos.len &
             " repos with local changes or ahead commits.")
     i = 0
     while i < passRepos.len:
-      runRepoPush(normalizePathValue(passRepos[i]), R, success, fails)
+      runRepoPush(normalizePathValue(passRepos[i]), R, success, fails, autoConfirmAll)
       inc i
-    remaining = 0
-    i = 0
-    while i < A.len:
-      if needsPushWork(A[i]):
-        inc remaining
-      inc i
-    addLine(R.lines, "Remaining repos after pass " & $pass & ": " & $remaining)
-    if remaining == 0:
-      break
-    if remaining >= previousRemaining:
-      R.ok = false
-      addLine(R.lines, "No further progress detected; stopping after pass " & $pass & ".")
-      break
-    previousRemaining = remaining
-    inc pass
+  remaining = 0
+  i = 0
+  while i < A.len:
+    if needsPushWork(A[i]):
+      inc remaining
+    inc i
+  if remaining > 0:
+    R.ok = false
+    addLine(R.lines, "Repos still needing push after this run: " & $remaining)
+  else:
+    addLine(R.lines, "No repos remain after this run.")
   addLine(R.lines, "Successful repos: " & $success.len)
   for repo in success:
     addLine(R.lines, "  " & repo)
@@ -591,6 +715,7 @@ proc pushAllFromParent*(v: bool = false): PushAllReport {.role(orchestrator).} =
     ownerRepos: seq[string]
     skips: seq[string]
     owner: string
+    autoConfirmAll: bool
   discard v
   result.ok = true
   S = buildPushAllTruthState()
@@ -607,10 +732,11 @@ proc pushAllFromParent*(v: bool = false): PushAllReport {.role(orchestrator).} =
   if not fileExists(S.configPath):
     S.configPath = ensureGlobalCoordinatorConfig()
     addLine(result.lines, "Created config file at " & S.configPath & ".")
-  if not confirmFetchPush():
+  if not confirmFetchPush(autoConfirmAll):
     result.ok = false
     addLine(result.lines, "Fetch/push cancelled by user.")
     return
+  noteAutoConfirmEnabled(result.lines, false, autoConfirmAll)
   owner = resolveTargetOwner(S, result)
   if owner.len == 0:
     if result.lines.len == 0:
@@ -623,7 +749,7 @@ proc pushAllFromParent*(v: bool = false): PushAllReport {.role(orchestrator).} =
     result.ok = false
     addLine(result.lines, "No repos found for owner: " & owner)
     return
-  runPushPasses(ownerRepos, result)
+  runPushPasses(ownerRepos, result, autoConfirmAll)
   addLine(result.lines, "Skipped repos: " & $skips.len)
   for owner in skips:
     addLine(result.lines, "  " & owner)

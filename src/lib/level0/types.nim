@@ -45,6 +45,9 @@ type
     configOwners*: string
     configAddOwner*: string
     configRemoveOwner*: string
+    configExcludedRepos*: string
+    configAddExcludedRepo*: string
+    configRemoveExcludedRepo*: string
     configForeignMode*: string
   ToolingConfig* = object
     rootDir*: string

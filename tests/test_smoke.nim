@@ -155,6 +155,11 @@ suite "iron tooling":
       "--add-owner",
       "beta",
       "--remove-owner=gamma",
+      "--exclude-repos",
+      "RepoA,F:/CodingMain/RepoB",
+      "--add-exclude=RepoC",
+      "--remove-exclude",
+      "RepoD",
       "--foreign-mode",
       "skip"
     ]
@@ -162,6 +167,9 @@ suite "iron tooling":
     check o.configOwners == "siriuslee69,alpha"
     check o.configAddOwner == "beta"
     check o.configRemoveOwner == "gamma"
+    check o.configExcludedRepos == "RepoA,F:/CodingMain/RepoB"
+    check o.configAddExcludedRepo == "RepoC"
+    check o.configRemoveExcludedRepo == "RepoD"
     check o.configForeignMode == "skip"
 
   test "parseRoots windows drive":
@@ -208,6 +216,26 @@ suite "iron tooling":
       check tHasB
       check tHasSub
       check tHasIron
+    finally:
+      removeTree(tRoot)
+
+  test "collectRepos skips nested repo markers inside repos":
+    var
+      tRoot: string
+      tOwnerRepo: string
+      tNestedRepo: string
+      tRepos: seq[string]
+    tRoot = newTempRoot("iron_nested")
+    try:
+      tOwnerRepo = joinPath(tRoot, "OwnerRepo")
+      tNestedRepo = joinPath(tOwnerRepo, "submodules", "NestedRepo")
+      createDir(tOwnerRepo)
+      createDir(tNestedRepo)
+      createDir(joinPath(tOwnerRepo, ".git"))
+      createDir(joinPath(tNestedRepo, ".git"))
+      tRepos = collectRepos(@[tRoot])
+      check tRepos.len == 1
+      check normalizePathValue(tRepos[0]) == normalizePathValue(tOwnerRepo)
     finally:
       removeTree(tRoot)
 

@@ -34,6 +34,7 @@ type
 
   CoordinatorConfig* = object
     owners*: seq[string]
+    excludedRepos*: seq[string]
     foreignMode*: string
 
 proc tomlQuote(v: string): string {.role(helper).}
@@ -121,20 +122,23 @@ proc splitKeyValueLine*(l: string): tuple[ok: bool, key: string, value: string] 
       v = trimQuotes(v)
       result = (k.len > 0, k, v)
 
-proc splitOwners*(v: string): seq[string] {.role(parser).} =
-  ## v: raw owner list.
+proc splitListValue*(v: string): seq[string] {.role(parser).} =
+  ## v: raw comma/semicolon-delimited list value.
   var
-    rs: seq[string]
     t: string
     parts: seq[string]
     s: string
   t = v.replace(';', ',')
   parts = t.split(',')
   for p in parts:
-    s = p.strip().toLowerAscii()
+    s = p.strip()
     if s.len > 0:
-      rs.add(s)
-  result = rs
+      result.add(s)
+
+proc splitOwners*(v: string): seq[string] {.role(parser).} =
+  ## v: raw owner list.
+  for p in splitListValue(v):
+    result.add(p.toLowerAscii())
 
 proc normalizeOwnerList*(A: seq[string]): seq[string] {.role(parser).} =
   ## A: raw owner values to normalize and de-duplicate.
@@ -151,9 +155,37 @@ proc normalizeOwnerList*(A: seq[string]): seq[string] {.role(parser).} =
       result.add(t)
     inc i
 
+proc normalizeExcludedRepo*(v: string): string {.role(parser).} =
+  ## v: repo selector entered as a repo name or path.
+  var
+    t: string
+  t = v.strip()
+  if t.len == 0:
+    return ""
+  if t.contains("/") or t.contains("\\") or t.startsWith(".") or
+      (t.len >= 2 and t[1] == ':'):
+    return normalizePathValue(t).toLowerAscii()
+  result = splitPath(t).tail.strip().toLowerAscii()
+
+proc normalizeExcludedRepoList*(A: seq[string]): seq[string] {.role(parser).} =
+  ## A: raw excluded repo selectors to normalize and de-duplicate.
+  var
+    S: HashSet[string]
+    i: int
+    t: string
+  S = initHashSet[string]()
+  i = 0
+  while i < A.len:
+    t = normalizeExcludedRepo(A[i])
+    if t.len > 0 and not S.contains(t):
+      S.incl(t)
+      result.add(t)
+    inc i
+
 proc defaultCoordinatorConfig*(): CoordinatorConfig {.role(helper).} =
   ## returns the default persisted config state.
   result.owners = @[]
+  result.excludedRepos = @[]
   result.foreignMode = "update"
 
 proc buildCoordinatorConfigText*(c: CoordinatorConfig): string {.role(truthBuilder).} =
@@ -161,12 +193,15 @@ proc buildCoordinatorConfigText*(c: CoordinatorConfig): string {.role(truthBuild
   var
     L: seq[string]
     ownersText: string
+    excludedReposText: string
   ownersText = c.owners.join(",")
+  excludedReposText = c.excludedRepos.join(",")
   L = @[
     "# Global iron config written next to the active binary.",
     "# Edit with `iron config` or by changing this file directly.",
     "",
     "owners = " & tomlQuote(ownersText),
+    "excluded_repos = " & tomlQuote(excludedReposText),
     "foreign_mode = " & tomlQuote(normalizeForeignMode(c.foreignMode))
   ]
   result = L.join("\n") & "\n"
@@ -209,6 +244,8 @@ proc applyCoordinatorConfigFile(c: var CoordinatorConfig, p: string) {.role(acto
     case kv.key.toLowerAscii()
     of "owners":
       c.owners = normalizeOwnerList(splitOwners(kv.value))
+    of "excluded_repos", "exclude_repos", "excludedrepos", "excluderepos":
+      c.excludedRepos = normalizeExcludedRepoList(splitListValue(kv.value))
     of "foreign_mode", "foreignmode":
       c.foreignMode = normalizeForeignMode(kv.value)
     else:
@@ -235,6 +272,7 @@ proc writeGlobalCoordinatorConfig*(c: CoordinatorConfig): string {.role(actor).}
   p = ensureGlobalCoordinatorConfig()
   t = c
   t.owners = normalizeOwnerList(t.owners)
+  t.excludedRepos = normalizeExcludedRepoList(t.excludedRepos)
   t.foreignMode = normalizeForeignMode(t.foreignMode)
   writeFile(p, buildCoordinatorConfigText(t))
   result = p
@@ -258,6 +296,7 @@ proc readCoordinatorConfig*(r: string): CoordinatorConfig {.role(truthBuilder).}
   if fm.len > 0:
     c.foreignMode = normalizeForeignMode(fm)
   c.owners = normalizeOwnerList(c.owners)
+  c.excludedRepos = normalizeExcludedRepoList(c.excludedRepos)
   result = c
 
 proc ownerAllowed*(c: CoordinatorConfig, owner: string): bool {.role(helper).} =
@@ -270,6 +309,23 @@ proc ownerAllowed*(c: CoordinatorConfig, owner: string): bool {.role(helper).} =
 proc ownersConfigured*(c: CoordinatorConfig): bool {.role(helper).} =
   ## c: coordinator config to check.
   result = c.owners.len > 0
+
+proc repoExcluded*(c: CoordinatorConfig, repoPath: string): bool {.role(helper).} =
+  ## c: coordinator config with excluded repo selectors.
+  ## repoPath: repo path to test against repo-name/path excludes.
+  var
+    pathKey: string
+    nameKey: string
+    i: int
+  if c.excludedRepos.len == 0:
+    return false
+  pathKey = normalizeExcludedRepo(repoPath)
+  nameKey = normalizeExcludedRepo(lastPathPart(repoPath))
+  i = 0
+  while i < c.excludedRepos.len:
+    if c.excludedRepos[i] == pathKey or c.excludedRepos[i] == nameKey:
+      return true
+    inc i
 
 proc ownerWriteAllowed*(c: CoordinatorConfig, owner: string): bool {.role(helper).} =
   ## c: coordinator config with owner list.

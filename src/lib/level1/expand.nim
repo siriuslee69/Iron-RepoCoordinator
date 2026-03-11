@@ -6,6 +6,7 @@
 
 import std/[os, strutils, osproc]
 import ../level0/repo_utils
+import commit_message_builder
 import submodule_links
 include ../level0/metaPragmas
 
@@ -116,6 +117,13 @@ proc upsertLocalModules(p: string, ms: seq[SubmoduleInfo]): seq[SubmoduleInfo] {
   writeLocalModules(p, merged)
   result = merged
 
+proc emitCommitTruth(ls: var seq[string], t: CommitMessageTruthState) {.role(actor).} =
+  ## ls: report line buffer.
+  ## t: commit message truth state to show before prompting.
+  for line in renderCommitTruthLines(t):
+    echo line
+    addLine(ls, line)
+
 proc expandSubmodule*(r: string, v: bool): ExpandReport {.role(orchestrator).} =
   ## r: repo path to expand from.
   ## v: verbose output toggle.
@@ -141,6 +149,7 @@ proc expandSubmodule*(r: string, v: bool): ExpandReport {.role(orchestrator).} =
     merged: seq[SubmoduleInfo]
     m: SubmoduleInfo
     msg: string
+    msgTruth: CommitMessageTruthState
     localUrl: string
     fail: int
     linkReport: SubmoduleLinkReport
@@ -195,7 +204,9 @@ proc expandSubmodule*(r: string, v: bool): ExpandReport {.role(orchestrator).} =
           addLine(report.lines, "Commit cancelled by user.")
           result = report
           return
-        msg = readCommitMessage(target)
+        msgTruth = buildCommitMessageTruthState(target)
+        emitCommitTruth(report.lines, msgTruth)
+        msg = buildAutomaticCommitMessage(msgTruth)
         if runAddCommit(target, msg) != 0:
           report.ok = false
           addLine(report.lines, "Commit failed in target repo.")

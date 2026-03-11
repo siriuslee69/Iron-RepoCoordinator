@@ -6,6 +6,7 @@
 
 import std/[os, strutils, osproc]
 import ../level0/repo_utils
+import commit_message_builder
 include ../level0/metaPragmas
 
 
@@ -70,6 +71,13 @@ proc runPush(r: string): int {.role(actor).} =
   var c: string = "git -C " & quoteShell(r) & " push"
   result = execCmd(c)
 
+proc emitCommitTruth(ls: var seq[string], t: CommitMessageTruthState) {.role(actor).} =
+  ## ls: report line buffer.
+  ## t: commit message truth state to show before prompting.
+  for line in renderCommitTruthLines(t):
+    echo line
+    addLine(ls, line)
+
 proc autoPushRepo*(r: string): AutoPushReport {.role(orchestrator).} =
   ## r: repo path to push.
   var
@@ -78,6 +86,7 @@ proc autoPushRepo*(r: string): AutoPushReport {.role(orchestrator).} =
     cfg: CoordinatorConfig
     owner: string
     msg: string
+    msgTruth: CommitMessageTruthState
   tReport.ok = true
   repo = normalizePathValue(r)
   if repo.len == 0:
@@ -111,8 +120,11 @@ proc autoPushRepo*(r: string): AutoPushReport {.role(orchestrator).} =
     result = tReport
     return
   if hasChanges(repo):
-    msg = readCommitMessage(repo)
-    if not confirmEnter("Commit changes with message: " & msg & "?"):
+    msgTruth = buildCommitMessageTruthState(repo)
+    emitCommitTruth(tReport.lines, msgTruth)
+    msg = buildAutomaticCommitMessage(msgTruth)
+    if not confirmEnter("Commit changes with summary: " &
+        readCommitMessageHeadline(msg) & "?"):
       tReport.ok = false
       addLine(tReport.lines, "Commit cancelled by user.")
       result = tReport

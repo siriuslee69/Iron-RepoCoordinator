@@ -34,14 +34,19 @@ proc buildConfigLines(c: CoordinatorConfig, p: string): seq[string] {.role(truth
   ## p: config file path.
   var
     ownersText: string
+    excludedReposText: string
   ownersText = c.owners.join(", ")
   if ownersText.len == 0:
     ownersText = "(none)"
+  excludedReposText = c.excludedRepos.join(", ")
+  if excludedReposText.len == 0:
+    excludedReposText = "(none)"
   result = @[
     "iron config",
     "",
     "Path: " & p,
     "Owners: " & ownersText,
+    "Excluded repos: " & excludedReposText,
     "Foreign mode: " & normalizeForeignMode(c.foreignMode)
   ]
 
@@ -52,6 +57,19 @@ proc removeOwner(A: seq[string], o: string): seq[string] {.role(actor).} =
     i: int
     t: string
   t = o.strip().toLowerAscii()
+  i = 0
+  while i < A.len:
+    if A[i] != t:
+      result.add(A[i])
+    inc i
+
+proc removeExcludedRepo(A: seq[string], r: string): seq[string] {.role(actor).} =
+  ## A: excluded repo selector list to filter.
+  ## r: repo selector to remove.
+  var
+    i: int
+    t: string
+  t = normalizeExcludedRepo(r)
   i = 0
   while i < A.len:
     if A[i] != t:
@@ -75,6 +93,20 @@ proc applyOptionEdits(S: var CoordinatorConfigTruthState, o: ToolingOptions) {.r
     S.next.owners = normalizeOwnerList(S.next.owners)
     S.hasMutation = true
     S.action = "Removed owner."
+  if o.configExcludedRepos.len > 0:
+    S.next.excludedRepos = normalizeExcludedRepoList(splitListValue(o.configExcludedRepos))
+    S.hasMutation = true
+    S.action = "Updated excluded repos."
+  if o.configAddExcludedRepo.len > 0:
+    S.next.excludedRepos.add(o.configAddExcludedRepo)
+    S.next.excludedRepos = normalizeExcludedRepoList(S.next.excludedRepos)
+    S.hasMutation = true
+    S.action = "Added excluded repo."
+  if o.configRemoveExcludedRepo.len > 0:
+    S.next.excludedRepos = removeExcludedRepo(S.next.excludedRepos, o.configRemoveExcludedRepo)
+    S.next.excludedRepos = normalizeExcludedRepoList(S.next.excludedRepos)
+    S.hasMutation = true
+    S.action = "Removed excluded repo."
   if o.configForeignMode.len > 0:
     S.next.foreignMode = normalizeForeignMode(o.configForeignMode)
     S.hasMutation = true
@@ -91,6 +123,9 @@ proc promptConfigMenu(S: var CoordinatorConfigTruthState): bool {.role(actor).} 
     "Set owners",
     "Add owner",
     "Remove owner",
+    "Set excluded repos",
+    "Add excluded repo",
+    "Remove excluded repo",
     "Set foreign mode"
   ]
   idx = promptOptionsDefault("Select config action:", options, 0)
@@ -119,8 +154,32 @@ proc promptConfigMenu(S: var CoordinatorConfigTruthState): bool {.role(actor).} 
     if t.len == 0:
       return false
     S.next.owners = removeOwner(S.next.owners, t)
+    S.next.owners = normalizeOwnerList(S.next.owners)
     S.hasMutation = true
     S.action = "Removed owner."
+  of 4:
+    t = promptText("Enter excluded repos (comma-separated repo names or paths): ")
+    if t.len == 0:
+      return false
+    S.next.excludedRepos = normalizeExcludedRepoList(splitListValue(t))
+    S.hasMutation = true
+    S.action = "Updated excluded repos."
+  of 5:
+    t = promptText("Enter repo name or path to exclude: ")
+    if t.len == 0:
+      return false
+    S.next.excludedRepos.add(t)
+    S.next.excludedRepos = normalizeExcludedRepoList(S.next.excludedRepos)
+    S.hasMutation = true
+    S.action = "Added excluded repo."
+  of 6:
+    t = promptText("Enter repo name or path to remove from excludes: ")
+    if t.len == 0:
+      return false
+    S.next.excludedRepos = removeExcludedRepo(S.next.excludedRepos, t)
+    S.next.excludedRepos = normalizeExcludedRepoList(S.next.excludedRepos)
+    S.hasMutation = true
+    S.action = "Removed excluded repo."
   else:
     idx = promptOptionsDefault("Select foreign mode:", @["update", "skip"], 0)
     if idx < 0:
@@ -156,6 +215,7 @@ proc runCoordinatorConfigCommand*(o: ToolingOptions): CoordinatorConfigReport {.
       return
   if S.hasMutation:
     S.next.owners = normalizeOwnerList(S.next.owners)
+    S.next.excludedRepos = normalizeExcludedRepoList(S.next.excludedRepos)
     S.next.foreignMode = normalizeForeignMode(S.next.foreignMode)
     result.path = writeGlobalCoordinatorConfig(S.next)
     if S.action.len > 0:
