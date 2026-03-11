@@ -1,6 +1,8 @@
-﻿# iron-Tooling
+# SUBJECT TO RAPID AND BREAKING CHANGES! FORK IS HIGHLY RECOMMENDED IF USED IN PRODUCTION OR SIMILAR!
+ 
+# Iron-RepoCoordinator
 
-iron is a CLI-first multi-repo tooling project in Nim. Repo-coordinator functionality is embedded directly in this repository, so iron is no longer only a wrapper around an external coordinator submodule.
+Iron is a CLI-first multi-repo tooling project in Nim. Repo-coordinator functionality is embedded directly in this repository, so iron is no longer only a wrapper around an external coordinator submodule.
 
 ## Goals
 - Keep one practical CLI surface for multi-repo workflows.
