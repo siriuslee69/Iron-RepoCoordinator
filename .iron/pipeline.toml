@@ -1,0 +1,32 @@
+name = "iron Library Maintenance Pipeline"
+description = "Live status graph for development, tests, docs generation, and metadata sync."
+interval_ms = 700
+root_id = "plan"
+
+[[nodes]]
+id = "plan"
+label = "Plan and scope feature change"
+status = "done"
+details = "Identify touched commands, options, tests, docs, and metadata files."
+parent = ""
+
+[[nodes]]
+id = "implement"
+label = "Implement source changes"
+status = "active"
+details = "Wire commands, keep modules maintainable, and preserve CLI behavior."
+parent = "plan"
+
+[[nodes]]
+id = "tests"
+label = "Run smoke tests"
+status = "todo"
+details = "Run nimble test and resolve regressions."
+parent = "implement"
+
+[[nodes]]
+id = "docs"
+label = "Refresh docs and scaffolds"
+status = "todo"
+details = "Update README, CONTRIBUTING, and checked-in .iron templates."
+parent = "implement"

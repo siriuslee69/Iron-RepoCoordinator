@@ -27,8 +27,8 @@ Features (Implemented):
 11. New commands: `docs-init`, `docs`, `show`
 12. New flags: `--src`, `--docs-out`, `--pipeline`, `--once`, `--loops`, `--interval-ms`, `--overwrite`
 13. Added `src/lib/level1/library_docs.nim` for autonomous API docs + JSON bridge output
-14. Added `src/lib/level1/pipeline_show.nim` for JSON tree parsing + live ASCII rendering loop
-15. Added `.iron/pipeline.json`, `.iron/pipeline.library.json`, and `.iron/docs_instructionset.md` templates
+14. Added `src/lib/level1/pipeline_show.nim` for pipeline parsing + live ASCII rendering loop
+15. Added `.iron/pipeline.toml`, `.iron/pipeline.library.toml`, and `.iron/docs_instructionset.md` templates
 16. Added `.iron/illwill_pipeline_example.nim` for terminal animation reference
 17. Refactored the library package tree under `src/lib/`
 18. Removed the legacy `val` entrypoint and `VALKYRIE_*` env fallbacks
@@ -41,6 +41,10 @@ Features (Implemented):
 25. Refactored `pushall` around repo perception, truth-state assembly, and push actors
 26. Collapsed the duplicate coordinator trees into one `src/lib/level0|level1` layout
 27. Moved backend and CLI entrypoints into `src/interfaces/backend` and `src/interfaces/frontend/cli`
+28. Added diff-aware automatic commit summaries with CLI truth output
+29. Added generic `.iron` file sync with numbered file selection
+30. Migrated pipeline scaffolding and checked-in pipeline files from JSON to TOML
+31. Added `UNLICENSE` and `CONTRIBUTING.md`
 
 Features (Working On):
 1. Follow-up cleanup for remaining write-command flows that still surface legacy local-config wording

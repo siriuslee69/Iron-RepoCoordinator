@@ -26,6 +26,7 @@ type
     tcBranchMode,
     tcConflicts,
     tcSyncConventions,
+    tcSyncIronFile,
     tcConfig,
     tcVersion
   ToolingOptions* = object

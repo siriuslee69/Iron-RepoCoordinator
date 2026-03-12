@@ -84,6 +84,8 @@ suite "iron tooling":
     check c == tcShow
     c = parseCommand(@["--", "show"])
     check c == tcShow
+    c = parseCommand(@["sync-iron-file"])
+    check c == tcSyncIronFile
     c = parseCommand(@["config"])
     check c == tcConfig
 
@@ -127,7 +129,7 @@ suite "iron tooling":
     cs = @[
       "show",
       "--repo=F:/CodingMain/RepoA",
-      "--pipeline=.iron/pipeline.json",
+      "--pipeline=.iron/pipeline.toml",
       "--interval-ms=333",
       "--loops=4",
       "--once",
@@ -137,7 +139,7 @@ suite "iron tooling":
     ]
     o = parseOptions(cs)
     check o.repo == "F:/CodingMain/RepoA"
-    check o.pipelinePath == ".iron/pipeline.json"
+    check o.pipelinePath == ".iron/pipeline.toml"
     check o.intervalMs == 333
     check o.loops == 4
     check o.once
@@ -267,7 +269,7 @@ proc helper(x: int): int =
 """)
       initReport = initDocsScaffold(tRoot, false)
       check initReport.ok
-      check fileExists(joinPath(tRoot, ".iron", "pipeline.json"))
+      check fileExists(joinPath(tRoot, ".iron", "pipeline.toml"))
       check fileExists(joinPath(tRoot, ".iron", "docs_instructionset.md"))
       docsReport = generateLibraryDocs(tRoot, "", "")
       check docsReport.ok
@@ -293,25 +295,25 @@ proc helper(x: int): int =
     try:
       tIronDir = joinPath(tRoot, ".iron")
       createDir(tIronDir)
-      tPipeline = joinPath(tIronDir, "pipeline.json")
+      tPipeline = joinPath(tIronDir, "pipeline.toml")
       writeFile(tPipeline, """
-{
-  "name": "Test Pipeline",
-  "intervalMs": 250,
-  "root": {
-    "id": "root",
-    "label": "Root Step",
-    "status": "active",
-    "children": [
-      {
-        "id": "child_a",
-        "label": "Child A",
-        "status": "todo",
-        "children": []
-      }
-    ]
-  }
-}
+name = "Test Pipeline"
+interval_ms = 250
+root_id = "root"
+
+[[nodes]]
+id = "root"
+label = "Root Step"
+status = "active"
+details = ""
+parent = ""
+
+[[nodes]]
+id = "child_a"
+label = "Child A"
+status = "todo"
+details = ""
+parent = "root"
 """)
       resolved = resolvePipelinePath(tRoot, "")
       check resolved == tPipeline

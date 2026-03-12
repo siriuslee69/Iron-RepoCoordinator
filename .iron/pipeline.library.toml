@@ -1,0 +1,32 @@
+name = "Library Maintenance Pipeline"
+description = "Template for library repos using iron docs automation."
+interval_ms = 700
+root_id = "plan"
+
+[[nodes]]
+id = "plan"
+label = "Plan change scope"
+status = "done"
+details = "Identify touched modules and expected API changes."
+parent = ""
+
+[[nodes]]
+id = "edit"
+label = "Edit source modules"
+status = "active"
+details = "Implement and keep doc comments updated."
+parent = "plan"
+
+[[nodes]]
+id = "test"
+label = "Run tests"
+status = "todo"
+details = "Execute smoke or unit tests for touched areas."
+parent = "edit"
+
+[[nodes]]
+id = "docs"
+label = "Generate library docs"
+status = "todo"
+details = "Run iron docs and review markdown plus bridge JSON."
+parent = "edit"

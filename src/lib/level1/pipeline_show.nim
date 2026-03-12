@@ -1,13 +1,19 @@
 # ==================================================
 # | iron Tooling Pipeline Viewer               |
 # |------------------------------------------------|
-# | Parse pipeline JSON trees and render ASCII UI. |
+# | Parse pipeline TOML trees and render ASCII UI. |
 # ==================================================
 
 import std/[json, os, strutils]
 include ../level0/metaPragmas
 
 type
+  PipelineNodeInput = object
+    id: string
+    label: string
+    status: string
+    details: string
+    parent: string
   PipelineNode* = object
     id*: string
     label*: string
@@ -117,21 +123,192 @@ proc parsePipelineJson(n: JsonNode): PipelineParseResult {.role(parser).} =
   result.spec.root = parseNode(tRoot, "root")
   result.ok = true
 
-proc readPipelineSpec*(pipelinePath: string): PipelineParseResult {.role(parser).} =
-  ## pipelinePath: JSON pipeline file path.
+proc trimTomlQuotes(s: string): string {.role(parser).} =
+  ## s: raw TOML value string.
+  var
+    t: string
+  t = s.strip()
+  if t.len >= 2 and t[0] == '"' and t[^1] == '"':
+    t = t[1 .. ^2]
+    t = t.replace("\\\"", "\"")
+  result = t
+
+proc splitTomlKeyValue(s: string): tuple[ok: bool, key: string, value: string] {.role(parser).} =
+  ## s: one TOML line with a key/value pair.
+  var
+    idx: int
+  idx = s.find('=')
+  if idx <= 0:
+    return (false, "", "")
+  result.ok = true
+  result.key = s[0 .. idx - 1].strip()
+  result.value = s[idx + 1 .. ^1].strip()
+
+proc parseTomlInt(s: string, d: int): int {.role(parser).} =
+  ## s: raw TOML integer value.
+  ## d: fallback value.
+  try:
+    result = parseInt(trimTomlQuotes(s))
+  except ValueError:
+    result = d
+
+proc readNodeInput(inputs: seq[PipelineNodeInput], nodeId: string): PipelineNodeInput {.role(parser).} =
+  ## inputs: parsed flat node inputs.
+  ## nodeId: id to look up.
+  var
+    i: int
+  i = 0
+  while i < inputs.len:
+    if inputs[i].id == nodeId:
+      return inputs[i]
+    inc i
+
+proc buildNodeTree(inputs: seq[PipelineNodeInput], nodeId: string,
+                   trail: seq[string] = @[]): PipelineNode {.role(truthBuilder).} =
+  ## inputs: parsed flat node inputs.
+  ## nodeId: node id to materialize into a tree.
+  ## trail: recursion trail used to stop cycles.
+  var
+    input: PipelineNodeInput
+    nextTrail: seq[string]
+    i: int
+    child: PipelineNode
+  input = readNodeInput(inputs, nodeId)
+  if input.id.len == 0:
+    return
+  result.id = input.id
+  result.label = if input.label.len > 0: input.label else: input.id
+  result.status = normalizeStatus(input.status)
+  result.details = input.details
+  if trail.contains(input.id):
+    return
+  nextTrail = trail
+  nextTrail.add(input.id)
+  i = 0
+  while i < inputs.len:
+    if inputs[i].parent == input.id and inputs[i].id != input.id:
+      child = buildNodeTree(inputs, inputs[i].id, nextTrail)
+      if child.id.len > 0:
+        result.children.add(child)
+    inc i
+
+proc parsePipelineToml(text: string): PipelineParseResult {.role(parser).} =
+  ## text: TOML pipeline file contents.
+  var
+    nodeInputs: seq[PipelineNodeInput]
+    current: PipelineNodeInput
+    inNode: bool
+    rootId: string
+    line: string
+    kv: tuple[ok: bool, key: string, value: string]
+    i: int
+  result.spec.name = "Pipeline"
+  result.spec.intervalMs = DefaultIntervalMs
+  for rawLine in text.splitLines():
+    line = rawLine.strip()
+    if line.len == 0 or line.startsWith("#"):
+      continue
+    if line in ["[[nodes]]", "[[node]]"]:
+      if inNode and current.id.len > 0:
+        nodeInputs.add(current)
+      current = PipelineNodeInput()
+      inNode = true
+      continue
+    if line.startsWith("[") and line.endsWith("]"):
+      continue
+    kv = splitTomlKeyValue(line)
+    if not kv.ok:
+      continue
+    if inNode:
+      case kv.key.strip().toLowerAscii()
+      of "id":
+        current.id = trimTomlQuotes(kv.value)
+      of "label":
+        current.label = trimTomlQuotes(kv.value)
+      of "status":
+        current.status = trimTomlQuotes(kv.value)
+      of "details":
+        current.details = trimTomlQuotes(kv.value)
+      of "parent", "parent_id", "parentid":
+        current.parent = trimTomlQuotes(kv.value)
+      else:
+        discard
+      continue
+    case kv.key.strip().toLowerAscii()
+    of "name":
+      result.spec.name = trimTomlQuotes(kv.value)
+    of "description":
+      result.spec.description = trimTomlQuotes(kv.value)
+    of "interval_ms", "intervalms":
+      result.spec.intervalMs = parseTomlInt(kv.value, DefaultIntervalMs)
+    of "root_id", "rootid":
+      rootId = trimTomlQuotes(kv.value)
+    else:
+      discard
+  if inNode and current.id.len > 0:
+    nodeInputs.add(current)
+  if result.spec.intervalMs <= 0:
+    result.spec.intervalMs = DefaultIntervalMs
+  if nodeInputs.len == 0:
+    result.ok = false
+    result.error = "pipeline TOML must define at least one [[nodes]] entry"
+    return
+  if rootId.len == 0:
+    i = 0
+    while i < nodeInputs.len:
+      if nodeInputs[i].parent.strip().len == 0:
+        rootId = nodeInputs[i].id
+        break
+      inc i
+  if rootId.len == 0:
+    rootId = nodeInputs[0].id
+  result.spec.root = buildNodeTree(nodeInputs, rootId)
+  if result.spec.root.id.len == 0:
+    result.ok = false
+    result.error = "pipeline root could not be resolved from TOML nodes"
+    return
+  result.ok = true
+
+proc readPipelineToml(path: string): PipelineParseResult {.role(parser).} =
+  ## path: TOML pipeline file path.
+  try:
+    result = parsePipelineToml(readFile(path))
+  except CatchableError:
+    result.ok = false
+    result.error = "failed to parse pipeline TOML: " & getCurrentExceptionMsg()
+
+proc readPipelineJson(path: string): PipelineParseResult {.role(parser).} =
+  ## path: legacy JSON pipeline file path.
   var
     n: JsonNode
-  if not fileExists(pipelinePath):
-    result.ok = false
-    result.error = "pipeline file does not exist: " & pipelinePath
-    return
   try:
-    n = parseFile(pipelinePath)
+    n = parseFile(path)
   except CatchableError:
     result.ok = false
     result.error = "failed to parse pipeline JSON: " & getCurrentExceptionMsg()
     return
   result = parsePipelineJson(n)
+
+proc readPipelineSpec*(pipelinePath: string): PipelineParseResult {.role(parser).} =
+  ## pipelinePath: TOML or legacy JSON pipeline file path.
+  var
+    ext: string
+    text: string
+  ext = splitFile(pipelinePath).ext.toLowerAscii()
+  if not fileExists(pipelinePath):
+    result.ok = false
+    result.error = "pipeline file does not exist: " & pipelinePath
+    return
+  if ext == ".json":
+    return readPipelineJson(pipelinePath)
+  result = readPipelineToml(pipelinePath)
+  if not result.ok:
+    try:
+      text = readFile(pipelinePath)
+    except CatchableError:
+      return
+    if text.strip().startsWith("{"):
+      result = readPipelineJson(pipelinePath)
 
 proc statusBadge(s: string, frame: int): string {.role(helper).} =
   ## s: normalized status value.
@@ -213,6 +390,10 @@ proc defaultPipelineCandidates*(repoPath: string): seq[string] {.role(helper).} 
     tRepo: string
   tRepo = absolutePath(repoPath)
   result = @[
+    joinPath(tRepo, ".iron", "pipeline.toml"),
+    joinPath(tRepo, ".iron", "pipeline.library.toml"),
+    joinPath(tRepo, "iron", "pipeline.toml"),
+    joinPath(tRepo, "iron", "pipeline.library.toml"),
     joinPath(tRepo, ".iron", "pipeline.json"),
     joinPath(tRepo, ".iron", "pipeline.library.json"),
     joinPath(tRepo, "iron", "pipeline.json"),

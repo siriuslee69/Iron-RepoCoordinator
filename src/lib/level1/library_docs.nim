@@ -470,8 +470,8 @@ proc buildMarkdownText(repoPath: string, srcDir: string, ms: seq[ModuleDoc]): st
     "",
     "## Agent Workflow",
     "",
-    "1. Update `.iron/pipeline.json` to reflect planned work and dependencies.",
-    "2. Run `iron show --pipeline .iron/pipeline.json` in one terminal.",
+    "1. Update `.iron/pipeline.toml` to reflect planned work and dependencies.",
+    "2. Run `iron show --pipeline .iron/pipeline.toml` in one terminal.",
     "3. Apply code changes, then refresh docs with `iron docs`.",
     "4. Review `" & outName & "` for machine-consumable structure.",
     ""
@@ -552,8 +552,8 @@ proc buildInstructionsetText(): string {.role(truthBuilder).} =
     "",
     "Use this workflow whenever an agent modifies library code:",
     "",
-    "1. Update `.iron/pipeline.json` with current steps and statuses.",
-    "2. Keep dependencies explicit in the `children` tree.",
+    "1. Update `.iron/pipeline.toml` with current steps and statuses.",
+    "2. Keep dependencies explicit through each node's `parent` id.",
     "3. Set status values to one of: `todo`, `active`, `done`, `blocked`, `failed`.",
     "4. Run `iron show` in a separate terminal while editing.",
     "5. After edits, run `iron docs` to regenerate API map + JSON bridge.",
@@ -562,14 +562,14 @@ proc buildInstructionsetText(): string {.role(truthBuilder).} =
     "",
     "- `iron docs --repo .`",
     "- `iron docs --repo . --src ./src --docs-out ./.iron/docs/library_api.md`",
-    "- `iron show --pipeline ./.iron/pipeline.json --interval-ms 700`",
-    "- `iron show --pipeline ./.iron/pipeline.json --once`",
+    "- `iron show --pipeline ./.iron/pipeline.toml --interval-ms 700`",
+    "- `iron show --pipeline ./.iron/pipeline.toml --once`",
     "",
-    "JSON tree requirements for `iron show`:",
+    "TOML pipeline requirements for `iron show`:",
     "",
-    "- Root object may define `name`, `description`, and `root`.",
-    "- Each node uses: `id`, `label`, `status`, `details`, `children`.",
-    "- `children` is an array of nested nodes.",
+    "- Top-level keys may define `name`, `description`, `interval_ms`, and `root_id`.",
+    "- Each `[[nodes]]` entry uses: `id`, `label`, `status`, `details`, `parent`.",
+    "- Leave `parent = \"\"` for the root node, or set `root_id` explicitly.",
     "",
     "Maintenance rule:",
     "",
@@ -578,44 +578,40 @@ proc buildInstructionsetText(): string {.role(truthBuilder).} =
   result = ls.join("\n")
 
 proc buildPipelineExampleText(): string {.role(truthBuilder).} =
-  var
-    t: JsonNode
-  t = %*{
-    "name": "Library Maintenance Pipeline",
-    "description": "Track AI + human workflow for docs-aware development.",
-    "intervalMs": 700,
-    "root": {
-      "id": "plan",
-      "label": "Plan change scope",
-      "status": "done",
-      "details": "Identify touched modules and expected API changes.",
-      "children": [
-        {
-          "id": "edit",
-          "label": "Edit source modules",
-          "status": "active",
-          "details": "Implement and keep doc comments updated.",
-          "children": [
-            {
-              "id": "test",
-              "label": "Run tests",
-              "status": "todo",
-              "details": "Execute smoke/unit tests for touched areas.",
-              "children": []
-            },
-            {
-              "id": "docs",
-              "label": "Generate library docs",
-              "status": "todo",
-              "details": "Run iron docs and review markdown + bridge JSON.",
-              "children": []
-            }
-          ]
-        }
-      ]
-    }
-  }
-  result = t.pretty()
+  result = """
+name = "Library Maintenance Pipeline"
+description = "Track AI + human workflow for docs-aware development."
+interval_ms = 700
+root_id = "plan"
+
+[[nodes]]
+id = "plan"
+label = "Plan change scope"
+status = "done"
+details = "Identify touched modules and expected API changes."
+parent = ""
+
+[[nodes]]
+id = "edit"
+label = "Edit source modules"
+status = "active"
+details = "Implement and keep doc comments updated."
+parent = "plan"
+
+[[nodes]]
+id = "test"
+label = "Run tests"
+status = "todo"
+details = "Execute smoke or unit tests for touched areas."
+parent = "edit"
+
+[[nodes]]
+id = "docs"
+label = "Generate library docs"
+status = "todo"
+details = "Run iron docs and review markdown plus bridge JSON."
+parent = "edit"
+""".strip() & "\n"
 
 proc buildIllwillExampleText(): string {.role(truthBuilder).} =
   var
@@ -657,7 +653,7 @@ proc buildIllwillExampleText(): string {.role(truthBuilder).} =
     "    inc i",
     "",
     "when isMainModule:",
-    "  let p = if paramCount() > 0: paramStr(1) else: \".iron/pipeline.json\"",
+    "  let p = if paramCount() > 0: paramStr(1) else: \".iron/pipeline.toml\"",
     "  initScreen()",
     "  defer: deinitScreen()",
     "  setCursorVisibility(false)",
@@ -698,8 +694,8 @@ proc initDocsScaffold*(repoPath: string, overwrite: bool): DocsInitReport {.role
     result.lines = @["Repo path does not exist: " & tRepo]
     return
   tMeta = detectMetadataDir(tRepo)
-  tPipeline = joinPath(tMeta, "pipeline.json")
-  tPipelineAlt = joinPath(tMeta, "pipeline.library.json")
+  tPipeline = joinPath(tMeta, "pipeline.toml")
+  tPipelineAlt = joinPath(tMeta, "pipeline.library.toml")
   tInstruction = joinPath(tMeta, "docs_instructionset.md")
   tIllwill = joinPath(tMeta, "illwill_pipeline_example.nim")
   writeScaffoldFile(tPipeline, buildPipelineExampleText(), overwrite, created, skipped)

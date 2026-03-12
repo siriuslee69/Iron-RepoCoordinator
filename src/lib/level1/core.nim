@@ -150,6 +150,7 @@ proc runCommand*(c: ToolingCommand, s: ToolingConfig, o: ToolingOptions): string
     cloneReport: CloneRepoReport
     conflictReport: ConflictSessionReport
     syncReport: ConventionsSyncReport
+    ironSyncReport: IronFileSyncReport
     configReport: CoordinatorConfigReport
     mode: string
     targetRepo: string
@@ -267,6 +268,9 @@ proc runCommand*(c: ToolingCommand, s: ToolingConfig, o: ToolingOptions): string
   of tcSyncConventions:
     syncReport = syncConventionsFromRoots(o.root)
     t = renderReportText(syncReport.lines, syncReport.ok, "Convention sync completed.", "Convention sync failed.")
+  of tcSyncIronFile:
+    ironSyncReport = syncIronFileFromRoots(o.root)
+    t = renderReportText(ironSyncReport.lines, ironSyncReport.ok, "Iron file sync completed.", "Iron file sync failed.")
   of tcConfig:
     configReport = runCoordinatorConfigCommand(o)
     t = renderReportText(configReport.lines, configReport.ok, "Config completed.", "Config failed.")

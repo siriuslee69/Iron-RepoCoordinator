@@ -34,7 +34,7 @@ proc runDemo(p: string) =
     inc i
 
 when isMainModule:
-  let p = if paramCount() > 0: paramStr(1) else: ".iron/pipeline.json"
+  let p = if paramCount() > 0: paramStr(1) else: ".iron/pipeline.toml"
   initScreen()
   defer: deinitScreen()
   setCursorVisibility(false)

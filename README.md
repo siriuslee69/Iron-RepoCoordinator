@@ -32,7 +32,7 @@ Common commands:
 - `iron test`
 - `iron docs-init --repo .`
 - `iron docs --repo .`
-- `iron show --repo . --pipeline .iron/pipeline.json`
+- `iron show --repo . --pipeline .iron/pipeline.toml`
 - `iron find`
 - `iron autopull`
 - `iron autopush`
@@ -41,15 +41,16 @@ Common commands:
 - `iron extract-all --root <path>`
 - `iron branch --mode main|nightly|promote`
 - `iron pushall`
+- `iron sync-iron-file`
 - `iron config`
-- `iron clone <url>`
+- `iron clone <url>` clones the repo, copies the canonical `Proto-RepoTemplate/.iron/` tree, and scaffolds `README.md`, `CONTRIBUTING.md`, and `UNLICENSE` when missing
 - `iron init --repo <path>`
 - `iron conflicts --root <path>`
 
 Extended docs/pipeline flags:
 - `--src <path>` source directory for docs scan (`docs` command)
 - `--docs-out <path>` markdown output path for generated docs
-- `--pipeline <path>` pipeline JSON to render in `show`
+- `--pipeline <path>` pipeline TOML to render in `show`
 - `--once` render one frame and exit
 - `--loops <int>` max frames for `show` (`0` keeps running)
 - `--interval-ms <int>` refresh interval for `show`
@@ -57,8 +58,8 @@ Extended docs/pipeline flags:
 
 ## Autonomous Library Docs
 - Run `iron docs-init --repo .` once to scaffold:
-  - `.iron/pipeline.json`
-  - `.iron/pipeline.library.json`
+  - `.iron/pipeline.toml`
+  - `.iron/pipeline.library.toml`
   - `.iron/docs_instructionset.md`
   - `.iron/illwill_pipeline_example.nim`
 - Run `iron docs --repo .` to generate:
@@ -72,34 +73,33 @@ The generated docs include:
 - missing-doc coverage counts
 
 ## Pipeline Viewer (`iron show`)
-`iron show` reads `.iron/pipeline.json` (or `pipeline.library.json`) as a JSON tree, then draws an updating ASCII dependency view in a loop. It re-reads the file every frame, so an agent can edit the pipeline while the viewer is running.
+`iron show` reads `.iron/pipeline.toml` (or `pipeline.library.toml`) as a TOML node list, then draws an updating ASCII dependency view in a loop. It re-reads the file every frame, so an agent can edit the pipeline while the viewer is running.
 
 Example:
-- `iron show --repo . --pipeline .iron/pipeline.json --interval-ms 600`
+- `iron show --repo . --pipeline .iron/pipeline.toml --interval-ms 600`
 - `iron show --repo . --once`
 
-Pipeline JSON shape:
+Pipeline TOML shape:
 
-```json
-{
-  "name": "Library Maintenance Pipeline",
-  "description": "Track current work and dependencies.",
-  "intervalMs": 700,
-  "root": {
-    "id": "plan",
-    "label": "Plan changes",
-    "status": "done",
-    "details": "Outline touched modules.",
-    "children": [
-      {
-        "id": "edit",
-        "label": "Implement edits",
-        "status": "active",
-        "children": []
-      }
-    ]
-  }
-}
+```toml
+name = "Library Maintenance Pipeline"
+description = "Track current work and dependencies."
+interval_ms = 700
+root_id = "plan"
+
+[[nodes]]
+id = "plan"
+label = "Plan changes"
+status = "done"
+details = "Outline touched modules."
+parent = ""
+
+[[nodes]]
+id = "edit"
+label = "Implement edits"
+status = "active"
+details = "Apply the code changes."
+parent = "plan"
 ```
 
 Status values:
@@ -143,6 +143,11 @@ Write actions use configured owners from the global iron config first, then repo
 - Unknown commands show a suggestion menu instead of dumping the full help text.
 - Non-interactive sessions abort for write operations.
 
+## Metadata Sync
+- `iron sync-conventions` still syncs the canonical conventions file.
+- `iron sync-iron-file` shows a numbered menu of canonical `.iron` files from the template repo and syncs the selected file across discovered repos.
+- Runtime-only `.iron` files like `progress.md`, `.local.config.toml`, `.local.gitmodules.toml`, and generated `docs/` outputs are excluded from that sync menu.
+
 ## Command Flow
 - The CLI now follows the workspace convention split:
   - perceive: raw args are parsed into command/input state
@@ -174,5 +179,5 @@ Write actions use configured owners from the global iron config first, then repo
 - Use `i/j/k` for indices and `l/m/n` for lengths.
 - Keep tests in `tests/` and run them after changes.
 - Update `.iron/PROGRESS.md` and this README for major changes.
-- Keep `.iron/pipeline.json` current during active development.
+- Keep `.iron/pipeline.toml` current during active development.
 - Regenerate `.iron/docs/library_api.md` and `.iron/docs/library_api.json` after meaningful API changes.

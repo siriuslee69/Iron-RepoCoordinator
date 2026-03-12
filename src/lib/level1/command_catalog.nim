@@ -42,7 +42,7 @@ proc readCommandSpecs*(): seq[ToolingCommandSpec] {.role(truthBuilder).} =
   addSpec(S, tcDocs, "docs", @["docs", "doc", "gendocs", "generate-docs"],
           "Generate autonomous library docs")
   addSpec(S, tcShow, "show", @["show", "pipeline", "pipeline-show"],
-          "Render .iron/pipeline.json as live ASCII tree")
+          "Render .iron/pipeline.toml as live ASCII tree")
   addSpec(S, tcFind, "find", @["find"],
           "Build local submodule overrides and link sibling repos")
   addSpec(S, tcAutoPull, "autopull", @["autopull"], "Pull all repos under discovered roots")
@@ -67,7 +67,10 @@ proc readCommandSpecs*(): seq[ToolingCommandSpec] {.role(truthBuilder).} =
   addSpec(S, tcSyncConventions, "sync-conventions",
           @["sync-conventions", "syncconventions", "conventions-sync",
             "update-conventions", "updateconventions"],
-          "Sync .iron/CONVENTIONS.md from Proto-RepoTemplate")
+          "Sync the canonical .iron conventions file from the template repo")
+  addSpec(S, tcSyncIronFile, "sync-iron-file",
+          @["sync-iron-file", "sync-iron", "sync-meta-file", "sync-dotiron-file"],
+          "Select and sync a canonical .iron file across repos")
   addSpec(S, tcConfig, "config", @["config", "cfg"],
           "View or edit the persisted iron config")
   addSpec(S, tcVersion, "version", @["version", "-v", "--version"], "Show version")
@@ -115,7 +118,7 @@ proc buildHelp*(): string {.role(actor).} =
   L.add("  --mode <main|nightly|promote>          Branch mode action")
   L.add("  --src <path> or --src=<path>           Source path for docs generation")
   L.add("  --docs-out <path> or --docs-out=<path> Markdown output for docs")
-  L.add("  --pipeline <path> or --pipeline=<path> Pipeline JSON for show")
+  L.add("  --pipeline <path> or --pipeline=<path> Pipeline TOML for show")
   L.add("  --replace                              Replace clone targets when extracting")
   L.add("  --dry-run                              Do not modify repositories")
   L.add("  --once                                 Render one show frame and exit")

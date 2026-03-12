@@ -9,8 +9,10 @@ import std/[os, osproc, random, strutils, times, unittest]
 import interfaces/backend/core
 import lib/level0/repo_utils
 import lib/level1/commit_message_builder
+import lib/level1/conventions_sync
 import lib/level1/pushall
 import lib/level1/repo_health
+import lib/level1/repo_bootstrap
 import lib/level1/test_picker
 
 
@@ -154,6 +156,116 @@ suite "embedded repo coordinator":
     t = readPushAllPromptInput("no")
     check not t.confirmed
     check not t.confirmAll
+
+  test "sync iron file copies selected canonical metadata":
+    var
+      tRoot: string
+      tTemplateRepo: string
+      tTargetRepo: string
+      tTemplateMeta: string
+      tTargetMeta: string
+      tSourceText: string
+      report: IronFileSyncReport
+      files: seq[string]
+    tRoot = newTempRoot("iron_sync")
+    try:
+      tTemplateRepo = joinPath(tRoot, "Proto-RepoTemplate")
+      tTargetRepo = joinPath(tRoot, "RepoA")
+      tTemplateMeta = joinPath(tTemplateRepo, ".iron")
+      tTargetMeta = joinPath(tTargetRepo, ".iron")
+      createDir(tTemplateRepo)
+      createDir(tTargetRepo)
+      createDir(tTemplateMeta)
+      createDir(tTargetMeta)
+      createDir(joinPath(tTemplateRepo, ".git"))
+      createDir(joinPath(tTargetRepo, ".git"))
+      createDir(joinPath(tTemplateMeta, "docs"))
+      tSourceText = "name = \"Template Pipeline\"\nroot_id = \"plan\"\n\n[[nodes]]\nid = \"plan\"\nlabel = \"Plan\"\nstatus = \"todo\"\nparent = \"\"\n"
+      writeFile(joinPath(tTemplateMeta, "pipeline.toml"), tSourceText)
+      writeFile(joinPath(tTemplateMeta, "conventions.md"), "# conventions\n")
+      writeFile(joinPath(tTemplateMeta, "progress.md"), "# progress\n")
+      writeFile(joinPath(tTemplateMeta, ".local.config.toml"), "x = 1\n")
+      writeFile(joinPath(tTemplateMeta, "docs", "library_api.md"), "# docs\n")
+      writeFile(joinPath(tTargetMeta, "pipeline.toml"), "name = \"Old\"\n")
+
+      files = readSyncableIronFiles(tRoot)
+      check files.contains("conventions.md")
+      check files.contains("pipeline.toml")
+      check not files.contains("progress.md")
+      check not files.contains(".local.config.toml")
+      check not files.contains("docs/library_api.md")
+
+      putEnv("IRON_ASSUME_YES", "1")
+      report = syncIronFileFromRoots(tRoot, "pipeline.toml")
+      delEnv("IRON_ASSUME_YES")
+
+      check report.ok
+      check report.relativePath == "pipeline.toml"
+      check fileExists(joinPath(tTargetMeta, "pipeline.toml"))
+      check readFile(joinPath(tTargetMeta, "pipeline.toml")) == tSourceText
+    finally:
+      delEnv("IRON_ASSUME_YES")
+      removeTree(tRoot)
+
+  test "clone copies canonical iron tree and root docs":
+    var
+      tRoot: string
+      tTemplateRepo: string
+      tTemplateMeta: string
+      tRemoteRoot: string
+      tSourceRepo: string
+      tCloneRoot: string
+      tClonedRepo: string
+      report: CloneRepoReport
+    tRoot = newTempRoot("iron_clone_bootstrap")
+    try:
+      tTemplateRepo = joinPath(tRoot, "Proto-RepoTemplate")
+      tTemplateMeta = joinPath(tTemplateRepo, ".iron")
+      tRemoteRoot = joinPath(tRoot, "remote")
+      tSourceRepo = joinPath(tRemoteRoot, "ExampleRepo")
+      tCloneRoot = joinPath(tRoot, "clones")
+      tClonedRepo = joinPath(tCloneRoot, "ExampleRepo")
+
+      createDir(tTemplateRepo)
+      createDir(tTemplateMeta)
+      createDir(joinPath(tTemplateMeta, "nested"))
+      writeFile(joinPath(tTemplateMeta, "CONVENTIONS.md"), "# template conventions\n")
+      writeFile(joinPath(tTemplateMeta, "PROGRESS.md"), "# template progress\n")
+      writeFile(joinPath(tTemplateMeta, ".local.config.toml"), "root = \"F:/CodingMain\"\n")
+      writeFile(joinPath(tTemplateMeta, ".local.config.toml.template"), "root = \"C:/ChangeMe/CodingMain\"\n")
+      writeFile(joinPath(tTemplateMeta, ".local.gitmodules.toml.template"), "[\"submodules/MySubmodule\"]\n")
+      writeFile(joinPath(tTemplateMeta, "metaPragmas.nim"), "template role*(x: untyped): untyped = x\n")
+      writeFile(joinPath(tTemplateMeta, "nested", "future_tool.nim"), "discard\n")
+      writeFile(joinPath(tTemplateRepo, "README.md"), "# Template README\n")
+      writeFile(joinPath(tTemplateRepo, "CONTRIBUTING.md"), "# Template CONTRIBUTING\n")
+      writeFile(joinPath(tTemplateRepo, "UNLICENSE"), "Template UNLICENSE\n")
+
+      createDir(tRemoteRoot)
+      createDir(tSourceRepo)
+      discard runGitOk(tSourceRepo, "init")
+      discard runGitOk(tSourceRepo, "config user.email codex@example.com")
+      discard runGitOk(tSourceRepo, "config user.name Codex")
+      createDir(joinPath(tSourceRepo, "src"))
+      writeFile(joinPath(tSourceRepo, "src", "sample.nim"), "discard\n")
+      discard runGitOk(tSourceRepo, "add -A .")
+      discard runGitOk(tSourceRepo, "commit -m init")
+
+      createDir(tCloneRoot)
+      report = cloneRepoWithiron(tSourceRepo, tCloneRoot, false, false)
+
+      check report.ok
+      check fileExists(joinPath(tClonedRepo, ".iron", "CONVENTIONS.md"))
+      check fileExists(joinPath(tClonedRepo, ".iron", "PROGRESS.md"))
+      check fileExists(joinPath(tClonedRepo, ".iron", ".local.config.toml"))
+      check fileExists(joinPath(tClonedRepo, ".iron", "metaPragmas.nim"))
+      check fileExists(joinPath(tClonedRepo, ".iron", "nested", "future_tool.nim"))
+      check readFile(joinPath(tClonedRepo, ".iron", "metaPragmas.nim")) ==
+        "template role*(x: untyped): untyped = x\n"
+      check readFile(joinPath(tClonedRepo, "README.md")) == "# Template README\n"
+      check readFile(joinPath(tClonedRepo, "CONTRIBUTING.md")) == "# Template CONTRIBUTING\n"
+      check readFile(joinPath(tClonedRepo, "UNLICENSE")) == "Template UNLICENSE\n"
+    finally:
+      removeTree(tRoot)
 
   test "commit keyword stays short and discerning":
     var

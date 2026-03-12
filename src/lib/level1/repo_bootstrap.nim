@@ -27,6 +27,8 @@ type
 
 
 const
+  TemplateRepoNames = ["Proto-RepoTemplate", "Proto-TemplateRepo", "proto-conventions"]
+  CloneRootTemplateFiles = ["README.md", "CONTRIBUTING.md", "UNLICENSE"]
   DefaultConventionsText = """# Repository Conventions
 
 - Keep repository metadata in `.iron/`.
@@ -99,49 +101,61 @@ proc removeTree(p: string) {.role(actor).} =
   if dirExists(p):
     removeDir(p)
 
-proc ensureTemplateSource(repoPath: string): string {.role(actor).} =
-  ## repoPath: target repo path used to locate Proto-RepoTemplate templates.
+proc ensureTemplateRepoRoot(repoPath: string): string {.role(actor).} =
+  ## repoPath: target repo path used to locate Proto-RepoTemplate.
   var
     d: string
     i: int
     c: string
     repoRoot: string
+    j: int
   repoRoot = normalizePathValue(repoPath)
-  c = joinPath(repoRoot, "submodules", "Proto-RepoTemplate", ".iron")
-  if dirExists(c):
-    return c
-  c = joinPath(repoRoot, "submodules", "Proto-TemplateRepo", ".iron")
-  if dirExists(c):
-    return c
-  c = joinPath(repoRoot, "submodules", "proto-conventions", ".iron")
-  if dirExists(c):
-    return c
+  j = 0
+  while j < TemplateRepoNames.len:
+    c = joinPath(repoRoot, "submodules", TemplateRepoNames[j])
+    if dirExists(joinPath(c, ironDir)):
+      return c
+    inc j
   d = normalizePathValue(repoPath)
   i = 0
   while i < 6 and d.len > 0:
-    c = joinPath(d, "Proto-RepoTemplate", ".iron")
-    if dirExists(c):
-      return c
-    c = joinPath(parentDir(d), "Proto-RepoTemplate", ".iron")
-    if dirExists(c):
-      return c
-    c = joinPath(d, "Proto-TemplateRepo", ".iron")
-    if dirExists(c):
-      return c
-    c = joinPath(parentDir(d), "Proto-TemplateRepo", ".iron")
-    if dirExists(c):
-      return c
-    c = joinPath(d, "proto-conventions", ".iron")
-    if dirExists(c):
-      return c
-    c = joinPath(parentDir(d), "proto-conventions", ".iron")
-    if dirExists(c):
-      return c
+    j = 0
+    while j < TemplateRepoNames.len:
+      c = joinPath(d, TemplateRepoNames[j])
+      if dirExists(joinPath(c, ironDir)):
+        return c
+      c = joinPath(parentDir(d), TemplateRepoNames[j])
+      if dirExists(joinPath(c, ironDir)):
+        return c
+      inc j
     if parentDir(d) == d:
       break
     d = parentDir(d)
     inc i
   result = ""
+
+proc copyTemplateFile(path: string, templatePath: string, overwrite: bool,
+                      report: var RepoInitReport) {.role(actor).} =
+  ## path: target file path.
+  ## templatePath: source template file.
+  ## overwrite: allow replacing existing files.
+  ## report: report object.
+  var
+    text: string
+    existed: bool
+  if templatePath.len == 0 or not fileExists(templatePath):
+    return
+  existed = fileExists(path)
+  if existed and not overwrite:
+    report.skipped.add(path)
+    return
+  text = readFile(templatePath)
+  ensureParentDir(path)
+  writeFile(path, text)
+  if existed:
+    report.updated.add(path)
+  else:
+    report.created.add(path)
 
 proc ensureFromTemplate(path: string, templatePath: string, fallbackText: string,
                         overwrite: bool, report: var RepoInitReport) {.role(actor).} =
@@ -150,20 +164,46 @@ proc ensureFromTemplate(path: string, templatePath: string, fallbackText: string
   ## fallbackText: fallback content if template is missing.
   ## overwrite: allow replacing existing files.
   ## report: report object.
-  var text: string
-  if fileExists(path) and not overwrite:
+  var
+    text: string
+    existed: bool
+  existed = fileExists(path)
+  if existed and not overwrite:
     report.skipped.add(path)
     return
   if templatePath.len > 0 and fileExists(templatePath):
     text = readFile(templatePath)
-  else:
+  elif fallbackText.len > 0:
     text = fallbackText
+  else:
+    report.skipped.add(path)
+    return
   ensureParentDir(path)
   writeFile(path, text)
-  if fileExists(path):
+  if existed:
     report.updated.add(path)
   else:
     report.created.add(path)
+
+proc copyTemplateDir(path: string, templatePath: string, overwrite: bool,
+                     report: var RepoInitReport) {.role(actor).} =
+  ## path: target directory path.
+  ## templatePath: source template directory.
+  ## overwrite: allow replacing existing files.
+  ## report: report object.
+  var
+    dest: string
+  if templatePath.len == 0 or not dirExists(templatePath):
+    return
+  if not dirExists(path):
+    createDir(path)
+    report.created.add(path)
+  for kind, child in walkDir(templatePath, relative = false):
+    dest = joinPath(path, lastPathPart(child))
+    if kind == pcFile or kind == pcLinkToFile:
+      copyTemplateFile(dest, child, overwrite, report)
+    elif dirExists(child):
+      copyTemplateDir(dest, child, overwrite, report)
 
 proc moveLegacyFile(src: string, dst: string, report: var RepoInitReport) {.role(helper).} =
   ## src: legacy source path.
@@ -473,13 +513,35 @@ proc setupSubmodulesAfterClone(repo: string, report: var CloneRepoReport) {.role
   else:
     runSubmoduleUpdate(repo, report)
 
-proc initRepoLayout*(repoPath: string, overwriteTemplates: bool): RepoInitReport {.role(orchestrator).} =
+proc copyCloneTemplateRootFiles(repo: string, templateRepo: string, overwrite: bool,
+                                report: var RepoInitReport) {.role(actor).} =
+  ## repo: target repository root.
+  ## templateRepo: canonical Proto-RepoTemplate root.
+  ## overwrite: allow replacing existing files.
+  ## report: report object.
+  var
+    i: int
+    sourcePath: string
+    targetPath: string
+  if templateRepo.len == 0 or not dirExists(templateRepo):
+    return
+  i = 0
+  while i < CloneRootTemplateFiles.len:
+    sourcePath = joinPath(templateRepo, CloneRootTemplateFiles[i])
+    targetPath = joinPath(repo, CloneRootTemplateFiles[i])
+    copyTemplateFile(targetPath, sourcePath, overwrite, report)
+    inc i
+
+proc initRepoLayout*(repoPath: string, overwriteTemplates: bool,
+                     copyRootDocs: bool = false): RepoInitReport {.role(orchestrator).} =
   ## repoPath: target repository path.
   ## overwriteTemplates: allow replacing template files.
+  ## copyRootDocs: copy root README/license scaffolding from Proto-RepoTemplate.
   var
     report: RepoInitReport
     repo: string
     meta: string
+    templateRoot: string
     templateDir: string
   report.ok = true
   repo = normalizePathValue(repoPath)
@@ -495,36 +557,43 @@ proc initRepoLayout*(repoPath: string, overwriteTemplates: bool): RepoInitReport
     createDir(meta)
     report.created.add(meta)
   migrateLegacyiron(repo, report)
-  templateDir = ensureTemplateSource(repo)
+  templateRoot = ensureTemplateRepoRoot(repo)
+  if templateRoot.len > 0:
+    templateDir = joinPath(templateRoot, ironDir)
   ensureProgressFile(repo, meta, report)
-  ensureFromTemplate(
-    joinPath(meta, "CONVENTIONS.md"),
-    joinPath(templateDir, "CONVENTIONS.md"),
-    DefaultConventionsText,
-    overwriteTemplates,
-    report
-  )
-  ensureFromTemplate(
-    joinPath(meta, "PROGRESS.md"),
-    joinPath(templateDir, "PROGRESS.md"),
-    DefaultProgressText,
-    overwriteTemplates,
-    report
-  )
-  ensureFromTemplate(
-    joinPath(meta, ".local.config.toml.template"),
-    joinPath(templateDir, ".local.config.toml.template"),
-    DefaultLocalConfigTemplate,
-    overwriteTemplates,
-    report
-  )
-  ensureFromTemplate(
-    joinPath(meta, ".local.gitmodules.toml.template"),
-    joinPath(templateDir, ".local.gitmodules.toml.template"),
-    DefaultLocalModulesTemplate,
-    overwriteTemplates,
-    report
-  )
+  if templateDir.len > 0 and dirExists(templateDir):
+    copyTemplateDir(meta, templateDir, overwriteTemplates, report)
+  else:
+    ensureFromTemplate(
+      joinPath(meta, "CONVENTIONS.md"),
+      joinPath(templateDir, "CONVENTIONS.md"),
+      DefaultConventionsText,
+      overwriteTemplates,
+      report
+    )
+    ensureFromTemplate(
+      joinPath(meta, "PROGRESS.md"),
+      joinPath(templateDir, "PROGRESS.md"),
+      DefaultProgressText,
+      overwriteTemplates,
+      report
+    )
+    ensureFromTemplate(
+      joinPath(meta, ".local.config.toml.template"),
+      joinPath(templateDir, ".local.config.toml.template"),
+      DefaultLocalConfigTemplate,
+      overwriteTemplates,
+      report
+    )
+    ensureFromTemplate(
+      joinPath(meta, ".local.gitmodules.toml.template"),
+      joinPath(templateDir, ".local.gitmodules.toml.template"),
+      DefaultLocalModulesTemplate,
+      overwriteTemplates,
+      report
+    )
+  if copyRootDocs:
+    copyCloneTemplateRootFiles(repo, templateRoot, overwriteTemplates, report)
   if ensureLocalIgnoreRules(repo):
     report.updated.add(joinPath(repo, ".gitignore"))
   addLine(report.lines, "Initialized .iron metadata in " & repo)
@@ -582,7 +651,7 @@ proc cloneRepoWithiron*(url: string, rootOverride: string,
     report.ok = false
     addLine(report.lines, "Destination exists but is not a git repo: " & dest)
     return report
-  initReport = initRepoLayout(dest, overwriteTemplates)
+  initReport = initRepoLayout(dest, overwriteTemplates, true)
   if not initReport.ok:
     report.ok = false
     for line in initReport.lines:
